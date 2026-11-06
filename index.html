@@ -364,7 +364,7 @@ S3.add(new THREE.HemisphereLight(0xffffff,0x3a5a35,.95));
  gg.setAttribute('color',new THREE.Float32BufferAttribute(cc,3));es.add(new THREE.Mesh(gg,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide})));
  const sm=new THREE.Mesh(new THREE.SphereGeometry(6,12,8),new THREE.MeshBasicMaterial({color:0xfff4d8}));sm.position.set(30,38,15);es.add(sm);
  S3.environment=pm.fromScene(es,.02).texture;pm.dispose()}catch(e){console.warn('env map failed',e)}}
-const MSELF=.6; // self-lit share of each texture (0-1): raise if models still look dark
+const MSELF=1.8; // self-lit share of each texture (0-1): raise if models still look dark
 const MBRIGHT=1.8; // raise/lower to make 3D models brighter/darker
 function fixMats(m){const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b;
  m.traverse(o=>{if(!o.isMesh)return;const cv=x=>{if(!x)return x;
