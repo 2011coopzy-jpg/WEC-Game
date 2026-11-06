@@ -17,10 +17,24 @@ button,select{font:inherit;color:var(--fg);background:#1d2630;border:1px solid #
 .row button.on[data-c="0"]{background:var(--red);border-color:var(--red)}
 .row button.on[data-c="1"]{background:var(--org);border-color:var(--org);color:#111}
 #go,#again{width:100%;margin-top:14px;background:#fff;color:#111;font-weight:800}
+#ld{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:env(safe-area-inset-top,0px) 24px env(safe-area-inset-bottom,0px);transition:opacity .5s}
+#ld.done{opacity:0;pointer-events:none}
+#ld .ldc{width:100%;max-width:420px;text-align:center}
+#ldb{position:relative;height:10px;margin:22px 0 10px;background:#1d2630;border-radius:6px;overflow:hidden}
+#ldf{position:absolute;inset:0;width:0;background:linear-gradient(90deg,var(--red),var(--org));border-radius:6px;transition:width .25s ease-out;overflow:hidden}
+#ldf::after{content:"";position:absolute;inset:0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);animation:ldsh 1.1s linear infinite}
+@keyframes ldsh{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
+#ldt{color:var(--fg);font-size:14px}
 table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}td{padding:5px 6px;border-bottom:1px solid #26303c}
 </style></head><body>
 <canvas id="c"></canvas>
-<div class="ov" id="menu"><div class="card">
+<div id="ld"><div class="ldc"><h1>Spa-Francorchamps 3D</h1><div id="ldb"><i id="ldf"></i></div><div id="ldt">Building track and scenery...</div><small id="ldp">0%</small></div></div>
+<script>
+window.LD={set(p,t){p=Math.max(0,Math.min(1,p));document.getElementById('ldf').style.width=(p*100)+'%';document.getElementById('ldp').textContent=Math.round(p*100)+'%';if(t)document.getElementById('ldt').textContent=t},
+ done(){const e=document.getElementById('ld');e.classList.add('done');setTimeout(()=>e.style.display='none',600)}};
+LD.set(.05);
+</script>
+<div class="ov" id="menu" style="display:none"><div class="card">
 <h1>Spa-Francorchamps 3D</h1>
 <p>Multi-class prototype race: 17 Hypercars and 18 LMGT3 cars share one circuit. Faster cars lap slower ones, so watch your mirrors and pick your moments.</p>
 <div class="row"><button data-c="0" class="on">Hypercar</button><button data-c="1">LMGT3</button></div>
@@ -36,6 +50,7 @@ table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}td{padd
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/meshopt_decoder.js"></script>
 <script>
+window.__boot=function(){
 const $=id=>document.getElementById(id),cv=$('c'),g=cv.getContext('2d');
 const clamp=(v,a,b)=>v<a?a:v>b?b:v,sin=Math.sin,cos=Math.cos,PI=Math.PI;
 let W,H,dpr=1;
@@ -218,7 +233,7 @@ addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys[k]=1;if(k.starts
 addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
-const MC={};let mOk=0,mBad=[];
+const MC={};let mOk=0,mBad=[];let onMP=()=>{};
 function mstat(){$('mstat').textContent='Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
 function loadModel(file){
  if(MC[file])return MC[file];
@@ -227,9 +242,9 @@ function loadModel(file){
  return MC[file]=new Promise(res=>{try{const L=new THREE.GLTFLoader();
   if(THREE.DRACOLoader){const d=new THREE.DRACOLoader();d.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/gltf/');L.setDRACOLoader(d)}
   if(window.MeshoptDecoder)L.setMeshoptDecoder(window.MeshoptDecoder);
-  L.load(url,g=>{mOk++;mstat();res(g.scene)},undefined,e=>{
+  L.load(url,g=>{mOk++;mstat();onMP(file,1);res(g.scene)},x=>{if(x&&x.lengthComputable&&x.total)onMP(file,Math.min(.99,x.loaded/x.total))},e=>{
     console.warn('Model failed to load:',url,e);
-    mBad.push(file);mstat();res(null);
+    mBad.push(file);mstat();onMP(file,1);res(null);
   })}catch(e){console.warn(e);mBad.push(file);mstat();res(null)}})}
 // fit a loaded model to the car: length along +x, nose forward, centred, resting on the ground
 function fit(src,C){
@@ -398,4 +413,14 @@ function render3d(){const p=P;
 function frame(t){requestAnimationFrame(frame);const dt=Math.min((t-lastT)/1000||0,.05);lastT=t;
  if(state!=='menu'){acc+=dt;while(acc>=H0){step(H0);acc-=H0}}else if(gn)gn.gain.value=0;draw()}
 requestAnimationFrame(frame);
+
+// ---------- loading screen: preload every car model, then reveal the menu ----------
+{const files=[...new Set([...HYG,...GTG].map(e=>e[3]).filter(Boolean))],fr={};files.forEach(f=>fr[f]=0);
+ const upd=()=>{const m=files.length?files.reduce((a,f)=>a+fr[f],0)/files.length:1;LD.set(.3+.7*m,'Loading car models...')};
+ onMP=(f,v)=>{fr[f]=Math.max(fr[f],v);upd()};
+ LD.set(.3,files.length?'Loading car models...':'Almost ready...');
+ Promise.race([Promise.all(files.map(loadModel)),new Promise(r=>setTimeout(r,30000))]).then(()=>{
+  mstat();LD.set(1,'Ready');setTimeout(()=>{LD.done();$('menu').style.display='flex'},300)})}
+};
+requestAnimationFrame(()=>setTimeout(()=>{try{window.__boot()}catch(e){console.error(e);LD.set(0,'Failed to start: '+e.message)}},40));
 </script></body></html>
