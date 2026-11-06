@@ -244,7 +244,7 @@ addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
 const MC={};let mOk=0,mBad=[];let onMP=()=>{};
-function mstat(){$('mstat').textContent='Build 9 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
+function mstat(){$('mstat').textContent='Build 10 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
 function loadModel(file){
  if(MC[file])return MC[file];
  // Relative path: loads directly from the repository relative to index.html
@@ -264,7 +264,7 @@ function fit(src,C){
  m.traverse(o=>{if(o.isMesh&&o.geometry.attributes.position){const p=o.geometry.attributes.position;for(let i=0;i<p.count;i+=3){v.fromBufferAttribute(p,i).applyMatrix4(o.matrixWorld);const t=(v.x-c.x)/sz.x;if(t>.3&&v.y>hf)hf=v.y;if(t<-.3&&v.y>hr)hr=v.y}}});
  if(hf>hr+.02){m.rotation.y+=PI;m.updateMatrixWorld(true);b.setFromObject(m);b.getCenter(c)}
  m.position.set(-c.x,-b.min.y,-c.z);g.scale.setScalar(C.len/sz.x);return g}
-function useModel(o){if(!o.mf)return;loadModel(o.mf).then(src=>{if(!src||!o.g)return;try{const m=fit(src,o.C);o.g.children.slice().forEach(k=>o.g.remove(k));o.g.add(m);fixMats(m)}catch(e){console.warn('fit failed',o.mf,e)}})}
+function useModel(o){if(!o.mf)return;loadModel(o.mf).then(src=>{if(!src||!o.g)return;try{const m=fit(src,o.C);try{fixMats(m)}catch(e){console.error('fixMats failed',o.mf,e)}o.g.children.slice().forEach(k=>o.g.remove(k));o.g.add(m)}catch(e){console.warn('fit failed',o.mf,e)}})}
 let ac,osc,gn;
 function audio(){try{ac=new(window.AudioContext||window.webkitAudioContext)();osc=ac.createOscillator();osc.type='sawtooth';
  const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=1100;gn=ac.createGain();gn.gain.value=0;osc.connect(f);f.connect(gn);gn.connect(ac.destination);osc.start()}catch(e){ac=0}}
@@ -364,6 +364,7 @@ S3.add(new THREE.HemisphereLight(0xffffff,0x3a5a35,.95));
  gg.setAttribute('color',new THREE.Float32BufferAttribute(cc,3));es.add(new THREE.Mesh(gg,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide})));
  const sm=new THREE.Mesh(new THREE.SphereGeometry(6,12,8),new THREE.MeshBasicMaterial({color:0xfff4d8}));sm.position.set(30,38,15);es.add(sm);
  S3.environment=pm.fromScene(es,.02).texture;pm.dispose()}catch(e){console.warn('env map failed',e)}}
+const MSELF=.6; // self-lit share of each texture (0-1): raise if models still look dark
 const MBRIGHT=1.8; // raise/lower to make 3D models brighter/darker
 function fixMats(m){const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b;
  m.traverse(o=>{if(!o.isMesh)return;const cv=x=>{if(!x)return x;
@@ -376,6 +377,7 @@ function fixMats(m){const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b;
   if(n.map&&!n.transparent)n.color.multiplyScalar(MBRIGHT);
   if(x.normalScale)n.normalScale.copy(x.normalScale);
   if(n.transparent)n.depthWrite=false;
+  if(n.map&&!x.emissiveMap&&!n.transparent){n.emissiveMap=n.map;n.emissive=new THREE.Color(MSELF,MSELF,MSELF)}else
   if(x.emissiveMap){n.emissiveMap=x.emissiveMap;n.emissive=new THREE.Color(1,1,1)}else if(x.emissive&&lum(x.emissive)>.02)n.emissive=x.emissive.clone().convertLinearToSRGB();
   if(!n.map&&!n.vertexColors&&lum(n.color)<.02)n.color.setHex(0x2b2f35);
   n.name=x.name;return n};
