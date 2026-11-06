@@ -24,6 +24,14 @@ button,select{font:inherit;color:var(--fg);background:#1d2630;border:1px solid #
 #clist button .tag{font-size:10px;font-weight:700;color:#111;background:#9fd3ff;border-radius:4px;padding:2px 5px}
 #clist button.sel{border-color:#fff;background:#26313d}
 #clist button.sel .tm{color:var(--fg)}
+#res .card{display:flex;flex-direction:column;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px)}
+#rtabs{display:flex;gap:8px;margin:10px 0 4px}
+#rtabs button{flex:1;font-weight:700}
+#rtabs button.on[data-c="0"]{background:var(--red);border-color:var(--red)}
+#rtabs button.on[data-c="1"]{background:var(--org);border-color:var(--org);color:#111}
+#tbl{flex:1 1 auto;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#tbl thead th{position:sticky;top:0;background:var(--pn);color:var(--mut);font-size:11px;font-weight:700;text-align:left;padding:5px 6px;border-bottom:1px solid #26303c}
+#tbl tr.me td{background:#26313d;font-weight:700}
 #go,#again{width:100%;margin-top:14px;background:#fff;color:#111;font-weight:800}
 #ld{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:env(safe-area-inset-top,0px) 24px env(safe-area-inset-bottom,0px);transition:opacity .5s}
 #ld.done{opacity:0;pointer-events:none}
@@ -54,7 +62,7 @@ LD.set(.05);
 <button id="go">Start race</button>
 <p style="margin-top:14px"><b>Keys:</b> W / Up throttle, S / Down brake, A D / Left Right steer, R reset to track, T traction control on/off, B ABS on/off, M mute. Gamepad works too. Brake early: downforce makes high-speed corners much grippier than slow ones.</p>
 </div></div>
-<div class="ov" id="res" style="display:none"><div class="card"><h1>Chequered flag</h1><div id="tbl"></div><button id="again">Race again</button></div></div>
+<div class="ov" id="res" style="display:none"><div class="card"><h1>Chequered flag</h1><div id="rtabs"></div><div id="tbl"></div><button id="again">Race again</button></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
@@ -120,8 +128,8 @@ const HYG=[
   ["17","Genesis",0xff6a13,"2026_genesis_gmr-001_hypercar.glb"],
   ["19","Genesis",0xff6a13,"2026_genesis_gmr-001_hypercar.glb"],
   ["20","BMW WRT",0x1c69d4,"2026_urd_bmw_m_hybrid_v8.glb"],
-  ["35","Alpine",0x90ff,"alpine_a424__www.vecarz.com (1).glb"],
-  ["36","Alpine",0x90ff,"alpine_a424__www.vecarz.com (1).glb"],
+  ["35","Alpine",0x90ff,"alpine_a424__www.vecarz.com.glb"],
+  ["36","Alpine",0x90ff,"alpine_a424__www.vecarz.com.glb"],
   ["38","JOTA",0x2a6fdb,"2023_cadillac_v-series.r.glb"],
   ["50","Ferrari AF Corse",0xdc0000,"2026_af_corsa_ferrari_499p.glb"],
   ["51","Ferrari AF Corse",0xdc0000,"2026_af_corsa_ferrari_499p.glb"],
@@ -244,18 +252,20 @@ addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
 const MC={};let mOk=0,mBad=[];let onMP=()=>{};
-function mstat(){$('mstat').textContent='Build 10 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
+function mstat(){$('mstat').textContent='Build 11 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
 function loadModel(file){
  if(MC[file])return MC[file];
- // Relative path: loads directly from the repository relative to index.html
- const url = './' + encodeURIComponent(file);
- return MC[file]=new Promise(res=>{try{const L=new THREE.GLTFLoader();
-  if(THREE.DRACOLoader){const d=new THREE.DRACOLoader();d.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/gltf/');L.setDRACOLoader(d)}
-  if(window.MeshoptDecoder)L.setMeshoptDecoder(window.MeshoptDecoder);
-  L.load(url,g=>{mOk++;mstat();onMP(file,1);res(g.scene)},x=>{if(x&&x.lengthComputable&&x.total)onMP(file,Math.min(.99,x.loaded/x.total))},e=>{
-    console.warn('Model failed to load:',url,e);
-    mBad.push(file);mstat();onMP(file,1);res(null);
-  })}catch(e){console.warn(e);mBad.push(file);mstat();res(null)}})}
+ // Relative paths: loads directly from the repository next to index.html.
+ // GitHub can rename uploads (spaces -> dots/dashes), so try a few spellings of the name.
+ const nm=[...new Set([file,file.replace(/ /g,'.'),file.replace(/ /g,'-'),file.replace(/ /g,'_'),file.replace(/ ?\(\d+\)/,''),file.replace(/ ?\(\d+\)/,'').toLowerCase(),file.toLowerCase()])];
+ const L=new THREE.GLTFLoader();
+ try{if(THREE.DRACOLoader){const d=new THREE.DRACOLoader();d.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/gltf/');L.setDRACOLoader(d)}
+  if(window.MeshoptDecoder)L.setMeshoptDecoder(window.MeshoptDecoder)}catch(e){console.warn(e)}
+ return MC[file]=new Promise(res=>{let k=0;
+  const next=()=>{if(k>=nm.length){mBad.push(file);mstat();onMP(file,1);res(null);return}
+   const url='./'+encodeURIComponent(nm[k++]);
+   try{L.load(url,g=>{mOk++;mstat();onMP(file,1);if(nm[k-1]!==file)console.info('Model loaded as',nm[k-1]);res(g.scene)},x=>{if(x&&x.lengthComputable&&x.total)onMP(file,Math.min(.99,x.loaded/x.total))},e=>{console.warn('Model failed to load:',url,e);next()})}catch(e){console.warn(e);next()}};
+  next()})}
 // fit a loaded model to the car: length along +x, nose forward, centred, resting on the ground
 function fit(src,C){
  const g=new THREE.Group(),m=src.clone(true),b=new THREE.Box3(),v=new THREE.Vector3(),sz=new THREE.Vector3(),c=new THREE.Vector3();g.add(m);
@@ -284,9 +294,13 @@ function step(h){
  coll();}
 const cmp=(a,b)=>a.fin&&b.fin?a.ft-b.ft:a.fin?-1:b.fin?1:b.prog-a.prog;
 const fmt=t=>t>0?Math.floor(t/60)+':'+(t%60).toFixed(3).padStart(6,'0'):'-:--.---';
-function showRes(){const o=[...cars].sort(cmp);
- $('tbl').innerHTML='<table>'+o.map((c,i)=>`<tr><td>${i+1}</td><td style="color:${c.C.col}">${c.C.s}</td><td>${c.name}${c===P?' (you)':''}</td><td>${c.fin?fmt(c.ft):'+'+Math.max(0,LAPS-Math.max(c.lap,0))+' lap'}</td><td>${fmt(c.best)}</td></tr>`).join('')+'</table><p>Columns: position, class, driver, race time, best lap.</p>';
- $('res').style.display='flex'}
+let resC=0;
+function renderRes(ci){resC=ci;const o=cars.filter(c=>c.ci===ci).sort(cmp);
+ $('rtabs').innerHTML=CLS.map((c,k)=>`<button data-c="${k}" class="${k===ci?'on':''}">${c.n} (${cars.filter(x=>x.ci===k).length})</button>`).join('');
+ $('rtabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{renderRes(+b.dataset.c);$('tbl').scrollTop=0});
+ $('tbl').innerHTML='<table><thead><tr><th>Pos</th><th>Car</th><th>Race time</th><th>Best lap</th></tr></thead><tbody>'+o.map((c,i)=>`<tr${c===P?' class="me"':''}><td>${i+1}</td><td>${c.name}</td><td>${c.fin?fmt(c.ft):'+'+Math.max(0,LAPS-Math.max(c.lap,0))+' lap'}</td><td>${fmt(c.best)}</td></tr>`).join('')+'</tbody></table>';
+ if(P&&P.ci===ci){const r=$('tbl').querySelector('tr.me');if(r)setTimeout(()=>r.scrollIntoView({block:'center'}),0)}}
+function showRes(){$('res').style.display='flex';renderRes(P?P.ci:0)}
 $('again').onclick=()=>{$('res').style.display='none';$('menu').style.display='flex';state='menu'};
 $('go').onclick=startRace;
 function spec(){$('spec').textContent=CLS[selC].info;
