@@ -60,7 +60,7 @@ LD.set(.05);
 <p><label>Race length <select id="laps"><option value="2">2 laps</option><option value="3" selected>3 laps</option><option value="5">5 laps</option><option value="10">10 laps</option></select></label></p>
 <p id="mstat">Model loading directly from repository...</p>
 <button id="go">Start race</button>
-<p style="margin-top:14px"><b>Keys:</b> W / Up throttle, S / Down brake, A D / Left Right steer, R reset to track, T traction control on/off, B ABS on/off, M mute. Gamepad works too. Brake early: downforce makes high-speed corners much grippier than slow ones.</p>
+<p style="margin-top:14px"><b>Keys:</b> W / Up throttle, S / Down brake, A D / Left Right steer, R reset to track, M mute. Traction control and ABS are always on. Gamepad works too. Brake early: downforce makes high-speed corners much grippier than slow ones.</p>
 </div></div>
 <div class="ov" id="res" style="display:none"><div class="card"><h1>Chequered flag</h1><div id="rtabs"></div><div id="tbl"></div><button id="again">Race again</button></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -154,7 +154,7 @@ function track(o){
  if(o.idx>N*.8&&bi<N*.2){o.lap++;if(o.lap>=1){const lt=T-o.lapStart;o.last=lt;if(!o.best||lt<o.best)o.best=lt}o.lapStart=T}
  else if(o.idx<N*.2&&bi>N*.8)o.lap--;
  o.idx=bi;const h=TH[bi];o.d=(o.x-TX[bi])*-sin(h)+(o.y-TY[bi])*cos(h);o.prog=o.lap*N+bi;
- const ad=Math.abs(o.d);o.surf=ad<TW/2+1.2?1:ad<TW/2+3?.8:.45;
+ const ad=Math.abs(o.d);o.surf=ad<TW/2+1.2?1:ad<TW/2+3?.92:.78;
  const lim=250;if(ad>lim){const s=Math.sign(o.d),e=ad-lim;o.x+=sin(h)*s*e;o.y-=cos(h)*s*e;o.u*=.5;o.v*=.5}
  if(o.lap>=LAPS&&!o.fin){o.fin=true;o.ft=T;if(o===P){o.ai=true;o.skill=.85;state='done';setTimeout(showRes,2500)}}}
 
@@ -176,7 +176,7 @@ function phys(o,h,thr,brk,st){
  if(o.tc){const km=Math.max(o.ka[2],o.ka[3],awd?Math.max(o.ka[0],o.ka[1]):0);Tt*=clamp(1-(km-.13)*7,.15,1)}
  if(thr<.05&&sp>5)Tt=-.05*m*G*R;
  const Tbt=brk*3.2*m*G*R,Tb=[.29,.29,.21,.21];
- let Fx=-(q*C.cd*(1-.4*dr)+.015*m*G+m*G*slopeAt(o)+(o.surf<.9?m*(1-o.surf)*(6+.3*sp):0))*(u>0?1:0),Fy=0,Mz=0;
+ let Fx=-(q*C.cd*(1-.4*dr)+.015*m*G+m*G*slopeAt(o)+(o.surf<.95?m*(1-o.surf)*(3+.12*sp):0))*(u>0?1:0),Fy=0,Mz=0;
  for(let i=0;i<4;i++){
   const fr=i<2,ax=fr?0:1,xi=fr?C.a:-C.b,yi=(i&1?1:-1)*tw/2,fz=Math.max(150,Fa[ax]/2+(i&1?-1:1)*dFz*shr[ax]);
   const vx=u-o.r*yi,vy=o.v+o.r*xi,vxw=fr?vx*cd+vy*sd:vx,vyw=fr?-vx*sd+vy*cd:vy,den=Math.max(Math.abs(vxw),4);
@@ -239,20 +239,40 @@ function aiCtl(o,h){
 function coll(){
  for(let i=0;i<cars.length;i++)for(let j=i+1;j<cars.length;j++){
   const a=cars[i],b=cars[j];if(Math.abs(a.x-b.x)>6||Math.abs(a.y-b.y)>6)continue;
-  for(const s of[1.4,-1.4])for(const t of[1.4,-1.4]){
-   const dx=b.x+cos(b.th)*t-a.x-cos(a.th)*s,dy=b.y+sin(b.th)*t-a.y-sin(a.th)*s,dd=Math.hypot(dx,dy);
-   if(dd<2.1&&dd>1e-3){const p=(2.1-dd)/2/dd;a.x-=dx*p;a.y-=dy*p;b.x+=dx*p;b.y+=dy*p;a.u*=.998;b.u*=.998}}}}
+  const ca=cos(a.th),sa=sin(a.th),cb=cos(b.th),sb=sin(b.th),HLa=a.C.len*.44,HWa=a.C.wid*.45,HLb=b.C.len*.44,HWb=b.C.wid*.45;
+  const dx=b.x-a.x,dy=b.y-a.y,axs=[[ca,sa],[-sa,ca],[cb,sb],[-sb,cb]];let best=1e9,nx=0,ny=0,hit=true;
+  for(const q of axs){const pa=HLa*Math.abs(q[0]*ca+q[1]*sa)+HWa*Math.abs(-q[0]*sa+q[1]*ca),pb=HLb*Math.abs(q[0]*cb+q[1]*sb)+HWb*Math.abs(-q[0]*sb+q[1]*cb),d=dx*q[0]+dy*q[1],ov=pa+pb-Math.abs(d);
+   if(ov<=0){hit=false;break}if(ov<best){best=ov;const sg=d<0?-1:1;nx=q[0]*sg;ny=q[1]*sg}}
+  if(!hit)continue;
+  // contact point: average of corners of one car lying inside the other
+  let cx=0,cy=0,cn=0;
+  const ins=(px,py,o,c,s,hl,hw)=>{const rx=px-o.x,ry=py-o.y;return Math.abs(rx*c+ry*s)<=hl+.08&&Math.abs(-rx*s+ry*c)<=hw+.08};
+  for(const[o,c,s,hl,hw,p,pc,ps,phl,phw]of[[a,ca,sa,HLa,HWa,b,cb,sb,HLb,HWb],[b,cb,sb,HLb,HWb,a,ca,sa,HLa,HWa]])
+   for(const u of[-1,1])for(const w of[-1,1]){const px=o.x+c*hl*u-s*hw*w,py=o.y+s*hl*u+c*hw*w;if(ins(px,py,p,pc,ps,phl,phw)){cx+=px;cy+=py;cn++}}
+  if(cn){cx/=cn;cy/=cn}else{cx=(a.x+b.x)/2;cy=(a.y+b.y)/2}
+  const ma=a.C.m+a.fuel,mb=b.C.m+b.fuel,Ia=a.C.I,Ib=b.C.I,dep=best+.01;
+  a.x-=nx*dep*mb/(ma+mb);a.y-=ny*dep*mb/(ma+mb);b.x+=nx*dep*ma/(ma+mb);b.y+=ny*dep*ma/(ma+mb);
+  let vax=a.u*ca-a.v*sa,vay=a.u*sa+a.v*ca,vbx=b.u*cb-b.v*sb,vby=b.u*sb+b.v*cb;
+  const rax=cx-a.x,ray=cy-a.y,rbx=cx-b.x,rby=cy-b.y,rel=()=>[vbx-b.r*rby-(vax-a.r*ray),vby+b.r*rbx-(vay+a.r*rax)];
+  let r=rel(),vn=r[0]*nx+r[1]*ny;
+  if(vn<0){
+   const raN=rax*ny-ray*nx,rbN=rbx*ny-rby*nx,den=1/ma+1/mb+raN*raN/Ia+rbN*rbN/Ib,jn=-(1+.12)*vn/den;
+   vax-=jn*nx/ma;vay-=jn*ny/ma;vbx+=jn*nx/mb;vby+=jn*ny/mb;a.r-=raN*jn/Ia;b.r+=rbN*jn/Ib;
+   r=rel();const tx=-ny,ty=nx,vt=r[0]*tx+r[1]*ty,raT=rax*ty-ray*tx,rbT=rbx*ty-rby*tx,dT=1/ma+1/mb+raT*raT/Ia+rbT*rbT/Ib,jt=clamp(-vt/dT,-.3*jn,.3*jn);
+   vax-=jt*tx/ma;vay-=jt*ty/ma;vbx+=jt*tx/mb;vby+=jt*ty/mb;a.r-=raT*jt/Ia;b.r+=rbT*jt/Ib}
+  for(const[o,c,s,vx,vy]of[[a,ca,sa,vax,vay],[b,cb,sb,vbx,vby]]){const u0=o.u,u1=vx*c+vy*s;o.v=-vx*s+vy*c;o.u=Math.max(0,u1);o.r=clamp(o.r,-3,3);
+   if(u0>1&&o.u<u0){const k=o.u/u0;for(let n=0;n<4;n++)o.om[n]*=k}}}}
 
 // ---------- input ----------
 const keys={},inp={thr:0,brk:0,st:0};
 addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys[k]=1;if(k.startsWith('arrow')||k===' ')e.preventDefault();
  if(k==='r'&&P&&state!=='menu'){P.x=TX[P.idx];P.y=TY[P.idx];P.th=TH[P.idx];P.u=P.v=P.r=0;P.steer=0;P.om=[0,0,0,0];P.al=[0,0,0,0]}
- if(k==='b'&&P)P.abs=!P.abs;if(k==='m')muted=!muted;if(k==='t')tcOn=!tcOn});
+ if(k==='m')muted=!muted;});
 addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
 const MC={};let mOk=0,mBad=[];let onMP=()=>{};
-function mstat(){$('mstat').textContent='Build 11 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
+function mstat(){$('mstat').textContent='Build 14 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
 function loadModel(file){
  if(MC[file])return MC[file];
  // Relative paths: loads directly from the repository next to index.html.
@@ -364,7 +384,7 @@ function hud(){
  panel(8,H-92,180,84);txt('Tyres '+Math.round((1-p.wear)*100)+'% life, '+Math.round(p.tt)+'°C',16,H-72,12);bar(16,H-66,160,6,1-p.wear,'#ffb020');
  txt('Fuel '+p.fuel.toFixed(1)+' kg',16,H-44,12);bar(16,H-38,160,6,p.fuel/C.fuel,'#5aa9ff');
  if(C.hyb){txt('Hybrid '+(p.ers>.01?'ready':'empty'),16,H-16,12);bar(100,H-24,76,6,p.ers,'#c26bff')}
- txt('TC '+(tcOn?'on':'off')+' (T)   ABS '+(P&&P.abs?'on':'off')+' (B)   physics 500 Hz',W-12,H-8,11,'#8a97a6','right');
+ txt('TC always on'+'  ABS always on   physics 500 Hz',W-12,H-8,11,'#8a97a6','right');
  if(state==='count'){for(let i=0;i<5;i++){g.fillStyle=cdT>i*.8+.4?'#ff1a1a':'#2a1212';g.beginPath();g.arc(W/2+(i-2)*34,H*.18,13,0,7);g.fill()}}
  else if(T<2)txt('Go!',W/2,H*.18,34,'#2fd28a','center');
  if(ac&&osc){osc.frequency.value=(p.rpm/60)*4*.6;gn.gain.value=muted?0:.025+.05*p.thr}}
@@ -378,8 +398,8 @@ S3.add(new THREE.HemisphereLight(0xffffff,0x3a5a35,.95));
  gg.setAttribute('color',new THREE.Float32BufferAttribute(cc,3));es.add(new THREE.Mesh(gg,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide})));
  const sm=new THREE.Mesh(new THREE.SphereGeometry(6,12,8),new THREE.MeshBasicMaterial({color:0xfff4d8}));sm.position.set(30,38,15);es.add(sm);
  S3.environment=pm.fromScene(es,.02).texture;pm.dispose()}catch(e){console.warn('env map failed',e)}}
-const MSELF=.6; // self-lit share of each texture (0-1): raise if models still look dark
-const MBRIGHT=1.8; // raise/lower to make 3D models brighter/darker
+const MSELF=.12; // self-lit share of each texture (0-1): raise if models still look dark
+const MBRIGHT=1.1; // raise/lower to make 3D models brighter/darker
 function fixMats(m){const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b;
  m.traverse(o=>{if(!o.isMesh)return;const cv=x=>{if(!x)return x;
   if(x.map&&x.map.encoding!==THREE.LinearEncoding){x.map.encoding=THREE.LinearEncoding;x.map.needsUpdate=true}
@@ -387,7 +407,7 @@ function fixMats(m){const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b;
   const met=x.metalness===undefined?0:x.metalness,rough=x.roughness===undefined?.5:x.roughness;
   const n=new THREE.MeshStandardMaterial({color:x.color?x.color.clone().convertLinearToSRGB():new THREE.Color(0xffffff),map:x.map||null,normalMap:x.normalMap||null,vertexColors:!!x.vertexColors,
    transparent:!!x.transparent,opacity:x.opacity===undefined?1:x.opacity,alphaTest:x.alphaTest||0,side:THREE.DoubleSide,
-   metalness:Math.min(met,.12),roughness:Math.max(.3,Math.min(rough,.85)),envMapIntensity:1.3});
+   metalness:Math.min(met,.12),roughness:Math.max(.3,Math.min(rough,.85)),envMapIntensity:.8});
   if(n.map&&!n.transparent)n.color.multiplyScalar(MBRIGHT);
   if(x.normalScale)n.normalScale.copy(x.normalScale);
   if(n.transparent)n.depthWrite=false;
