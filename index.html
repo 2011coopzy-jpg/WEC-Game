@@ -244,7 +244,7 @@ addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
 const MC={};let mOk=0,mBad=[];let onMP=()=>{};
-function mstat(){$('mstat').textContent='Build 8 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
+function mstat(){$('mstat').textContent='Build 9 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
 function loadModel(file){
  if(MC[file])return MC[file];
  // Relative path: loads directly from the repository relative to index.html
@@ -364,6 +364,7 @@ S3.add(new THREE.HemisphereLight(0xffffff,0x3a5a35,.95));
  gg.setAttribute('color',new THREE.Float32BufferAttribute(cc,3));es.add(new THREE.Mesh(gg,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide})));
  const sm=new THREE.Mesh(new THREE.SphereGeometry(6,12,8),new THREE.MeshBasicMaterial({color:0xfff4d8}));sm.position.set(30,38,15);es.add(sm);
  S3.environment=pm.fromScene(es,.02).texture;pm.dispose()}catch(e){console.warn('env map failed',e)}}
+const MBRIGHT=1.8; // raise/lower to make 3D models brighter/darker
 function fixMats(m){const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b;
  m.traverse(o=>{if(!o.isMesh)return;const cv=x=>{if(!x)return x;
   if(x.map&&x.map.encoding!==THREE.LinearEncoding){x.map.encoding=THREE.LinearEncoding;x.map.needsUpdate=true}
@@ -371,7 +372,8 @@ function fixMats(m){const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b;
   const met=x.metalness===undefined?0:x.metalness,rough=x.roughness===undefined?.5:x.roughness;
   const n=new THREE.MeshStandardMaterial({color:x.color?x.color.clone().convertLinearToSRGB():new THREE.Color(0xffffff),map:x.map||null,normalMap:x.normalMap||null,vertexColors:!!x.vertexColors,
    transparent:!!x.transparent,opacity:x.opacity===undefined?1:x.opacity,alphaTest:x.alphaTest||0,side:THREE.DoubleSide,
-   metalness:Math.min(met,.3),roughness:Math.max(.3,Math.min(rough,.85)),envMapIntensity:.9});
+   metalness:Math.min(met,.12),roughness:Math.max(.3,Math.min(rough,.85)),envMapIntensity:1.3});
+  if(n.map&&!n.transparent)n.color.multiplyScalar(MBRIGHT);
   if(x.normalScale)n.normalScale.copy(x.normalScale);
   if(n.transparent)n.depthWrite=false;
   if(x.emissiveMap){n.emissiveMap=x.emissiveMap;n.emissive=new THREE.Color(1,1,1)}else if(x.emissive&&lum(x.emissive)>.02)n.emissive=x.emissive.clone().convertLinearToSRGB();
