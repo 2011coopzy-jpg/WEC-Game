@@ -26,9 +26,7 @@ table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}td{padd
 <div class="row"><button data-c="0" class="on">Hypercar</button><button data-c="1">LMGT3</button></div>
 <p id="spec"></p>
 <p><label>Race length <select id="laps"><option value="2">2 laps</option><option value="3" selected>3 laps</option><option value="5">5 laps</option><option value="10">10 laps</option></select></label></p>
-<p><label>Car models URL (GitHub / jsDelivr folder)<input id="murl" placeholder="https://cdn.jsdelivr.net/gh/USER/REPO@main/models/" style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px;border-radius:6px;border:1px solid #33414f;background:#1d2630;color:inherit"></label></p>
-<p><label>or choose GLB files from your computer <input id="mfile" type="file" accept=".glb" multiple></label></p>
-<p id="mstat">No models loaded yet: cars use basic boxes.</p>
+<p id="mstat">Model loading directly from repository...</p>
 <button id="go">Start race</button>
 <p style="margin-top:14px"><b>Keys:</b> W / Up throttle, S / Down brake, A D / Left Right steer, R reset to track, T traction control on/off, M mute. Gamepad works too. Brake early: downforce makes high-speed corners much grippier than slow ones.</p>
 </div></div>
@@ -86,8 +84,26 @@ const bx0=Math.min(...TX),bx1=Math.max(...TX),by0=Math.min(...TY),by1=Math.max(.
 
 // ---------- cars ----------
 let cars=[],P,state='menu',T=0,cdT=0,LAPS=3,selC=0,muted=false;
-// real 2026 WEC grid: [number, team, placeholder livery colour, model file]
-const HYG=[["007","THOR",0xb6b4a,"2026_aston_martin_valkyire_lmh.glb"],["009","THOR",0xb6b4a,"2026_aston_martin_valkyire_lmh.glb"],["7","Toyota",0xe60012,"2026_toyota_tr010_read_description.glb"],["8","Toyota",0xe60012,"2026_toyota_tr010_read_description.glb"],["12","JOTA",0x2a6fdb,"2023_cadillac_v-series.r.glb"],["15","BMW WRT",0x1c69d4,"bmw_m_hybrid_v8.glb"],["17","Genesis",0xff6a13,"2026_genesis_gmr-001_hypercar.glb"],["19","Genesis",0xff6a13,"2026_genesis_gmr-001_hypercar.glb"],["20","BMW WRT",0x1c69d4,"2026_urd_bmw_m_hybrid_v8.glb"],["35","Alpine",0x90ff,"alpine_a424__www.vecarz.com (1).glb"],["36","Alpine",0x90ff,"alpine_a424__www.vecarz.com (1).glb"],["38","JOTA",0x2a6fdb,"2023_cadillac_v-series.r.glb"],["50","Ferrari AF Corse",0xdc0000,"2026_af_corsa_ferrari_499p.glb"],["51","Ferrari AF Corse",0xdc0000,"2026_af_corsa_ferrari_499p.glb"],["83","AF Corse",0xf5c400,"2024_ferrari_499p.glb"],["93","Peugeot",0x3a3f47,"2024_peugeot_9x8_hybrid_hypercar_lmh.glb"],["94","Peugeot",0x3a3f47,"2024_peugeot_9x8_hybrid_hypercar_lmh.glb"]],GTG=[["10","Garage 59",0xff8000],["21","Vista AF Corse",0xc40000],["23","Heart of Racing",0x6f5c],["27","Heart of Racing",0x6f5c],["32","WRT",0x66b1],["33","TF Sport",0xffd100],["34","Racing Team Turkey",0xe30a17],["54","Vista AF Corse",0xc40000],["58","Garage 59",0xff8000],["61","Iron Lynx",0xa3a1],["69","WRT",0x66b1],["77","Proton",0xa3d8f],["78","Akkodis ASP",0x7b2ff7],["79","Iron Lynx",0xa3a1],["87","Akkodis ASP",0x7b2ff7],["88","Proton",0xa3d8f],["91","Manthey",0xe8e8e8],["92","The Bend Manthey",0x1a1a1a]];
+// Only Car #15 (BMW WRT) gets the custom 3D model; all other cars remain null (procedural box cars)
+const HYG=[
+  ["007","THOR",0xb6b4a,null],
+  ["009","THOR",0xb6b4a,null],
+  ["7","Toyota",0xe60012,null],
+  ["8","Toyota",0xe60012,null],
+  ["12","JOTA",0x2a6fdb,null],
+  ["15","BMW WRT",0x1c69d4,"bmw_m_hybrid_v8.glb"],
+  ["17","Genesis",0xff6a13,null],
+  ["19","Genesis",0xff6a13,null],
+  ["20","BMW WRT",0x1c69d4,null],
+  ["35","Alpine",0x90ff,null],
+  ["36","Alpine",0x90ff,null],
+  ["38","JOTA",0x2a6fdb,null],
+  ["50","Ferrari AF Corse",0xdc0000,null],
+  ["51","Ferrari AF Corse",0xdc0000,null],
+  ["83","AF Corse",0xf5c400,null],
+  ["93","Peugeot",0x3a3f47,null],
+  ["94","Peugeot",0x3a3f47,null]
+],GTG=[["10","Garage 59",0xff8000],["21","Vista AF Corse",0xc40000],["23","Heart of Racing",0x6f5c],["27","Heart of Racing",0x6f5c],["32","WRT",0x66b1],["33","TF Sport",0xffd100],["34","Racing Team Turkey",0xe30a17],["54","Vista AF Corse",0xc40000],["58","Garage 59",0xff8000],["61","Iron Lynx",0xa3a1],["69","WRT",0x66b1],["77","Proton",0xa3d8f],["78","Akkodis ASP",0x7b2ff7],["79","Iron Lynx",0xa3a1],["87","Akkodis ASP",0x7b2ff7],["88","Proton",0xa3d8f],["91","Manthey",0xe8e8e8],["92","The Bend Manthey",0x1a1a1a]];
 function mk(ci,num,name,ai,idx,off,skill,hue){
  const C=CLS[ci],h=TH[idx];
  return{C,ci,num,name,ai,skill,hue,x:TX[idx]-sin(h)*off,y:TY[idx]+cos(h)*off,th:h,u:0,v:0,r:0,steer:0,ax:0,ay:0,idx,lap:-1,prog:0,d:off,surf:1,
@@ -202,19 +218,19 @@ addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys[k]=1;if(k.starts
 addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
-const LOCAL={},MC={};let mOk=0,mBad=[];
-try{const u=localStorage.getItem('murl');if(u)$('murl').value=u}catch(e){}
-$('murl').onchange=()=>{try{localStorage.setItem('murl',$('murl').value)}catch(e){}};
-$('mfile').onchange=e=>{for(const f of e.target.files)LOCAL[f.name]=URL.createObjectURL(f);$('mstat').textContent='Selected '+e.target.files.length+' file(s): '+[...e.target.files].map(f=>f.name).join(', ')};
-function mstat(){$('mstat').textContent='Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', ')+' (open the browser console for the reason)':'')}
+const MC={};let mOk=0,mBad=[];
+function mstat(){$('mstat').textContent='Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
 function loadModel(file){
  if(MC[file])return MC[file];
- const base=($('murl').value||'').trim(),url=LOCAL[file]||(base?base.replace(/\/?$/,'/')+encodeURIComponent(file):null);
- if(!url)return MC[file]=Promise.resolve(null);
+ // Relative path: loads directly from the repository relative to index.html
+ const url = './' + encodeURIComponent(file);
  return MC[file]=new Promise(res=>{try{const L=new THREE.GLTFLoader();
   if(THREE.DRACOLoader){const d=new THREE.DRACOLoader();d.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/gltf/');L.setDRACOLoader(d)}
   if(window.MeshoptDecoder)L.setMeshoptDecoder(window.MeshoptDecoder);
-  L.load(url,g=>{mOk++;mstat();res(g.scene)},undefined,e=>{console.warn('Model failed to load:',url,e);mBad.push(file);mstat();res(null)})}catch(e){console.warn(e);mBad.push(file);mstat();res(null)}})}
+  L.load(url,g=>{mOk++;mstat();res(g.scene)},undefined,e=>{
+    console.warn('Model failed to load:',url,e);
+    mBad.push(file);mstat();res(null);
+  })}catch(e){console.warn(e);mBad.push(file);mstat();res(null)}})}
 // fit a loaded model to the car: length along +x, nose forward, centred, resting on the ground
 function fit(src,C){
  const g=new THREE.Group(),m=src.clone(true),b=new THREE.Box3(),v=new THREE.Vector3(),sz=new THREE.Vector3(),c=new THREE.Vector3();g.add(m);
