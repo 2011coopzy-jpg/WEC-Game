@@ -16,6 +16,14 @@ button,select{font:inherit;color:var(--fg);background:#1d2630;border:1px solid #
 .row button{flex:1;font-weight:700}
 .row button.on[data-c="0"]{background:var(--red);border-color:var(--red)}
 .row button.on[data-c="1"]{background:var(--org);border-color:var(--org);color:#111}
+#clist{display:grid;gap:6px;max-height:240px;overflow:auto;margin:10px 0 4px;padding-right:2px}
+#clist button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8px 12px;font-size:13px;background:#1a222c}
+#clist button .sw{width:6px;align-self:stretch;border-radius:3px;flex:none}
+#clist button .no{font-weight:800;min-width:38px}
+#clist button .tm{flex:1;color:var(--mut);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#clist button .tag{font-size:10px;font-weight:700;color:#111;background:#9fd3ff;border-radius:4px;padding:2px 5px}
+#clist button.sel{border-color:#fff;background:#26313d}
+#clist button.sel .tm{color:var(--fg)}
 #go,#again{width:100%;margin-top:14px;background:#fff;color:#111;font-weight:800}
 #ld{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:env(safe-area-inset-top,0px) 24px env(safe-area-inset-bottom,0px);transition:opacity .5s}
 #ld.done{opacity:0;pointer-events:none}
@@ -39,6 +47,8 @@ LD.set(.05);
 <p>Multi-class prototype race: 17 Hypercars and 18 LMGT3 cars share one circuit. Faster cars lap slower ones, so watch your mirrors and pick your moments.</p>
 <div class="row"><button data-c="0" class="on">Hypercar</button><button data-c="1">LMGT3</button></div>
 <p id="spec"></p>
+<small id="cltitle">Choose your car</small>
+<div id="clist"></div>
 <p><label>Race length <select id="laps"><option value="2">2 laps</option><option value="3" selected>3 laps</option><option value="5">5 laps</option><option value="10">10 laps</option></select></label></p>
 <p id="mstat">Model loading directly from repository...</p>
 <button id="go">Start race</button>
@@ -98,7 +108,7 @@ const VT=[buildVT(CLS[0]),buildVT(CLS[1])];
 const bx0=Math.min(...TX),bx1=Math.max(...TX),by0=Math.min(...TY),by1=Math.max(...TY);
 
 // ---------- cars ----------
-let cars=[],P,state='menu',T=0,cdT=0,LAPS=3,selC=0,muted=false;
+let cars=[],P,state='menu',T=0,cdT=0,LAPS=3,selC=0,selCar=[2,2],muted=false;
 // Only Car #15 (BMW WRT) gets the custom 3D model; all other cars remain null (procedural box cars)
 const HYG=[
   ["007","THOR",0xb6b4a,null],
@@ -125,7 +135,7 @@ function mk(ci,num,name,ai,idx,off,skill,hue){
  lapStart:0,last:0,best:0,fin:false,ft:0,fuel:C.fuel,wear:0,tt:75,om:[0,0,0,0],al:[0,0,0,0],ka:[0,0,0,0],sh:0,dr:0,tc:true,ers:.6,gi:0,rpm:3500,bl:false,base:off*0.4,lane:off,thr:0,brk:0};}
 function startRace(){
  cars.forEach(o=>o.g&&S3.remove(o.g));cars=[];camAng=camZ=undefined;T=0;cdT=0;LAPS=+$('laps').value;state='count';
- for(let k=0;k<35;k++){const c=k<17?0:1,ck=c?k-17:k,isP=c===selC&&ck===2,idx=(N-6-(k>>1)*3+N)%N,off=k%2?3.5:-3.5;
+ for(let k=0;k<35;k++){const c=k<17?0:1,ck=c?k-17:k,isP=c===selC&&ck===selCar[c],idx=(N-6-(k>>1)*3+N)%N,off=k%2?3.5:-3.5;
   const e=(c?GTG:HYG)[ck],o=mk(c,e[0],(isP?'You · ':'')+'#'+e[0]+' '+e[1],!isP,idx,off,clamp(0.975-ck*0.0007-Math.random()*0.004,0.8,1),e[2]);
   o.mf=e[3];cars.push(o);if(isP)P=o;}
  $('menu').style.display='none';$('res').style.display='none';
@@ -279,7 +289,12 @@ function showRes(){const o=[...cars].sort(cmp);
  $('res').style.display='flex'}
 $('again').onclick=()=>{$('res').style.display='none';$('menu').style.display='flex';state='menu'};
 $('go').onclick=startRace;
-function spec(){$('spec').textContent=CLS[selC].info}spec();
+function spec(){$('spec').textContent=CLS[selC].info;
+ const L=selC?GTG:HYG,hex=n=>'#'+n.toString(16).padStart(6,'0'),box=$('clist');box.innerHTML='';
+ $('cltitle').textContent='Choose your '+CLS[selC].n+' ('+L.length+' cars)';
+ L.forEach((e,i)=>{const b=document.createElement('button');b.className=i===selCar[selC]?'sel':'';
+  b.innerHTML='<span class="sw" style="background:'+hex(e[2])+'"></span><span class="no">#'+e[0]+'</span><span class="tm">'+e[1]+'</span>'+(e[3]?'<span class="tag">3D</span>':'');
+  b.onclick=()=>{selCar[selC]=i;spec()};box.appendChild(b)})}spec();
 document.querySelectorAll('.row button').forEach(b=>b.onclick=()=>{selC=+b.dataset.c;document.querySelectorAll('.row button').forEach(x=>x.classList.toggle('on',x===b));spec()});
 
 // ---------- rendering ----------
