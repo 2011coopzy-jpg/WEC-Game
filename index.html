@@ -111,23 +111,23 @@ const bx0=Math.min(...TX),bx1=Math.max(...TX),by0=Math.min(...TY),by1=Math.max(.
 let cars=[],P,state='menu',T=0,cdT=0,LAPS=3,selC=0,selCar=[2,2],muted=false;
 // Only Car #15 (BMW WRT) gets the custom 3D model; all other cars remain null (procedural box cars)
 const HYG=[
-  ["007","THOR",0xb6b4a,null],
-  ["009","THOR",0xb6b4a,null],
-  ["7","Toyota",0xe60012,null],
-  ["8","Toyota",0xe60012,null],
-  ["12","JOTA",0x2a6fdb,null],
+  ["007","THOR",0xb6b4a,"2026_aston_martin_valkyire_lmh.glb"],
+  ["009","THOR",0xb6b4a,"2026_aston_martin_valkyire_lmh.glb"],
+  ["7","Toyota",0xe60012,"2026_toyota_tr010_read_description.glb"],
+  ["8","Toyota",0xe60012,"2026_toyota_tr010_read_description.glb"],
+  ["12","JOTA",0x2a6fdb,"2023_cadillac_v-series.r.glb"],
   ["15","BMW WRT",0x1c69d4,"bmw_m_hybrid_v8.glb"],
-  ["17","Genesis",0xff6a13,null],
-  ["19","Genesis",0xff6a13,null],
-  ["20","BMW WRT",0x1c69d4,null],
-  ["35","Alpine",0x90ff,"alpine_a424__www.vecarz.com.glb"],
-  ["36","Alpine",0x90ff,"alpine_a424__www.vecarz.com.glb"],
-  ["38","JOTA",0x2a6fdb,null],
-  ["50","Ferrari AF Corse",0xdc0000,null],
-  ["51","Ferrari AF Corse",0xdc0000,null],
-  ["83","AF Corse",0xf5c400,null],
-  ["93","Peugeot",0x3a3f47,null],
-  ["94","Peugeot",0x3a3f47,null]
+  ["17","Genesis",0xff6a13,"2026_genesis_gmr-001_hypercar.glb"],
+  ["19","Genesis",0xff6a13,"2026_genesis_gmr-001_hypercar.glb"],
+  ["20","BMW WRT",0x1c69d4,"2026_urd_bmw_m_hybrid_v8.glb"],
+  ["35","Alpine",0x90ff,"alpine_a424__www.vecarz.com (1).glb"],
+  ["36","Alpine",0x90ff,"alpine_a424__www.vecarz.com (1).glb"],
+  ["38","JOTA",0x2a6fdb,"2023_cadillac_v-series.r.glb"],
+  ["50","Ferrari AF Corse",0xdc0000,"2026_af_corsa_ferrari_499p.glb"],
+  ["51","Ferrari AF Corse",0xdc0000,"2026_af_corsa_ferrari_499p.glb"],
+  ["83","AF Corse",0xf5c400,"2024_ferrari_499p.glb"],
+  ["93","Peugeot",0x3a3f47,"2024_peugeot_9x8_hybrid_hypercar_lmh.glb"],
+  ["94","Peugeot",0x3a3f47,"2024_peugeot_9x8_hybrid_hypercar_lmh.glb"]
 ],GTG=[["10","Garage 59",0xff8000],["21","Vista AF Corse",0xc40000],["23","Heart of Racing",0x6f5c],["27","Heart of Racing",0x6f5c],["32","WRT",0x66b1],["33","TF Sport",0xffd100],["34","Racing Team Turkey",0xe30a17],["54","Vista AF Corse",0xc40000],["58","Garage 59",0xff8000],["61","Iron Lynx",0xa3a1],["69","WRT",0x66b1],["77","Proton",0xa3d8f],["78","Akkodis ASP",0x7b2ff7],["79","Iron Lynx",0xa3a1],["87","Akkodis ASP",0x7b2ff7],["88","Proton",0xa3d8f],["91","Manthey",0xe8e8e8],["92","The Bend Manthey",0x1a1a1a]];
 function mk(ci,num,name,ai,idx,off,skill,hue){
  const C=CLS[ci],h=TH[idx];
@@ -244,7 +244,7 @@ addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
 const MC={};let mOk=0,mBad=[];let onMP=()=>{};
-function mstat(){$('mstat').textContent='Build 6 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
+function mstat(){$('mstat').textContent='Build 8 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
 function loadModel(file){
  if(MC[file])return MC[file];
  // Relative path: loads directly from the repository relative to index.html
@@ -366,9 +366,16 @@ S3.add(new THREE.HemisphereLight(0xffffff,0x3a5a35,.95));
  S3.environment=pm.fromScene(es,.02).texture;pm.dispose()}catch(e){console.warn('env map failed',e)}}
 function fixMats(m){const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b;
  m.traverse(o=>{if(!o.isMesh)return;const cv=x=>{if(!x)return x;
-  const n=new THREE.MeshLambertMaterial({color:x.color?x.color.clone():new THREE.Color(0xffffff),map:x.map||null,vertexColors:!!x.vertexColors,transparent:!!x.transparent,opacity:x.opacity===undefined?1:x.opacity,alphaTest:x.alphaTest||0,side:THREE.DoubleSide});
-  if(x.emissiveMap){n.emissiveMap=x.emissiveMap;n.emissive=new THREE.Color(1,1,1)}else if(x.emissive&&lum(x.emissive)>.02&&lum(x.emissive)<.99)n.emissive=x.emissive.clone();
-  if(!n.map&&!n.vertexColors&&lum(n.color)<.05)n.color.setHex(0x2b2f35);
+  if(x.map&&x.map.encoding!==THREE.LinearEncoding){x.map.encoding=THREE.LinearEncoding;x.map.needsUpdate=true}
+  if(x.emissiveMap&&x.emissiveMap.encoding!==THREE.LinearEncoding){x.emissiveMap.encoding=THREE.LinearEncoding;x.emissiveMap.needsUpdate=true}
+  const met=x.metalness===undefined?0:x.metalness,rough=x.roughness===undefined?.5:x.roughness;
+  const n=new THREE.MeshStandardMaterial({color:x.color?x.color.clone().convertLinearToSRGB():new THREE.Color(0xffffff),map:x.map||null,normalMap:x.normalMap||null,vertexColors:!!x.vertexColors,
+   transparent:!!x.transparent,opacity:x.opacity===undefined?1:x.opacity,alphaTest:x.alphaTest||0,side:THREE.DoubleSide,
+   metalness:Math.min(met,.3),roughness:Math.max(.3,Math.min(rough,.85)),envMapIntensity:.9});
+  if(x.normalScale)n.normalScale.copy(x.normalScale);
+  if(n.transparent)n.depthWrite=false;
+  if(x.emissiveMap){n.emissiveMap=x.emissiveMap;n.emissive=new THREE.Color(1,1,1)}else if(x.emissive&&lum(x.emissive)>.02)n.emissive=x.emissive.clone().convertLinearToSRGB();
+  if(!n.map&&!n.vertexColors&&lum(n.color)<.02)n.color.setHex(0x2b2f35);
   n.name=x.name;return n};
   o.material=Array.isArray(o.material)?o.material.map(cv):cv(o.material);o.castShadow=o.receiveShadow=false})}
 let camAng,camZ,HT;
