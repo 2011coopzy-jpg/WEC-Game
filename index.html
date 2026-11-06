@@ -77,9 +77,9 @@ addEventListener('resize',rs);rs();
 
 // ---------- classes (simplified BoP-style numbers) ----------
 const CLS=[
-{n:'Hypercar',s:'HYP',col:'#e4002b',m:1030,P:520e3,cd:1.0,cl:4.2,mu:1.95,a:1.7,b:1.4,len:5.0,wid:2.0,gears:[28,42,56,69,81,92,102],rpm:8500,brk:17,hyb:0,fuel:20,af:.44,
+{n:'Hypercar',s:'HYP',col:'#e4002b',m:1030,P:520e3,cd:1.0,cl:4.2,mu:2.25,a:1.7,b:1.4,len:5.0,wid:2.0,gears:[28,42,56,69,81,92,102],rpm:8500,brk:17,hyb:0,fuel:20,af:.44,
  info:'520 kW, 1,030 kg, rear-wheel drive, no hybrid system, heavy downforce, about 335 km/h top speed.'},
-{n:'LMGT3',s:'GT3',col:'#ff8a00',m:1300,P:400e3,cd:1.25,cl:2.3,mu:1.75,a:1.5,b:1.2,len:4.9,wid:2.0,gears:[22,34,46,57,68,82],rpm:7500,brk:13,hyb:0,fuel:20,af:.42,
+{n:'LMGT3',s:'GT3',col:'#ff8a00',m:1300,P:400e3,cd:1.25,cl:2.3,mu:2.05,a:1.5,b:1.2,len:4.9,wid:2.0,gears:[22,34,46,57,68,82],rpm:7500,brk:13,hyb:0,fuel:20,af:.42,
  info:'340 kW, 1,300 kg, rear-wheel drive, GT-style aero, about 280 km/h top speed.'}];
 CLS.forEach(c=>{c.R=.35;c.tw=1.6;c.Iw=2.5;c.vmax=Math.cbrt(c.P/(0.6*c.cd))*0.98;c.I=c.m*c.a*c.b*1.15});
 
@@ -182,14 +182,14 @@ function phys(o,h,thr,brk,st){
   const vx=u-o.r*yi,vy=o.v+o.r*xi,vxw=fr?vx*cd+vy*sd:vx,vyw=fr?-vx*sd+vy*cd:vy,den=Math.max(Math.abs(vxw),4);
   const ka=clamp((o.om[i]*R-vxw)/den,-1,1),al=Math.atan2(vyw,Math.max(Math.abs(vxw),3));
   o.al[i]+=clamp(h*Math.max(Math.abs(vxw),3)/.6,0,1)*(al-o.al[i]);
-  const mu=C.mu*(1.12-.12*fz/(C.m*G*.4))*gm*(fr?1:1.08),kn=ka/.09,an=Math.tan(o.al[i])/.105,s=Math.hypot(kn,an)+1e-6,F=mu*fz*sin(1.5*Math.atan(1.73*s));
+  const mu=C.mu*(1.12-.12*fz/(C.m*G*.4))*gm*(fr?1:1.08),kn=ka/.09,an=Math.tan(o.al[i])/.085,s=Math.hypot(kn,an)+1e-6,F=mu*fz*sin(1.35*Math.atan(1.73*s));
   const fxw=F*kn/s,fyw=-F*an/s;
   let td=(awd||i>1)?Tt/nd:0;if(i>1)td+=(i&1?-1:1)*(o.om[3]-o.om[2])*60;
   let bt=Tb[i]*Tbt;if(o.abs){if(ka<-.1){bt*=clamp(1+(ka+.1)*30,0,1);if(brk>.3&&o.u>8)o.absA=.12}}else if(ka<-.18)bt*=clamp(1+(ka+.18)*9,.2,1);
   const Ie=C.Iw+h*R*R*28.8*mu*fz/den;let w=o.om[i]+h*(td-fxw*R)/Ie;const dw=h*bt/Ie;w=Math.abs(w)<=dw?0:w-Math.sign(w)*dw;o.om[i]=w;o.ka[i]=ka;
   const fxb=fr?fxw*cd-fyw*sd:fxw,fyb=fr?fxw*sd+fyw*cd:fyw;Fx+=fxb;Fy+=fyb;Mz+=xi*fyb-yi*fxb}
  o.ax+=(Fx/m-o.ax)*Math.min(1,h*20);o.ay+=(Fy/m-o.ay)*Math.min(1,h*40);
- o.u+=(Fx/m+o.v*o.r)*h;o.v+=(Fy/m-u*o.r)*h;o.r+=(Mz/C.I-.8*o.r*Math.min(1,sp/30))*h;if(o.u<0)o.u=0;
+ o.u+=(Fx/m+o.v*o.r)*h;o.v+=(Fy/m-u*o.r)*h;o.r+=(Mz/C.I-1.8*o.r*Math.min(1,sp/30))*h;if(o.u<0)o.u=0;
  o.th+=o.r*h;o.x+=(o.u*cos(o.th)-o.v*sin(o.th))*h;o.y+=(o.u*sin(o.th)+o.v*cos(o.th))*h;
  o.bl=brk>.1;o.thr=thr;o.brk=brk;o.absA=Math.max(0,(o.absA||0)-h);
  o.wear=Math.min(1,o.wear+h*5e-5*((o.ay/G)**2+(o.ax/G)**2));
@@ -272,7 +272,7 @@ addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
 const MC={};let mOk=0,mBad=[];let onMP=()=>{};
-function mstat(){$('mstat').textContent='Build 14 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
+function mstat(){$('mstat').textContent='Build 15 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
 function loadModel(file){
  if(MC[file])return MC[file];
  // Relative paths: loads directly from the repository next to index.html.
@@ -384,7 +384,6 @@ function hud(){
  panel(8,H-92,180,84);txt('Tyres '+Math.round((1-p.wear)*100)+'% life, '+Math.round(p.tt)+'°C',16,H-72,12);bar(16,H-66,160,6,1-p.wear,'#ffb020');
  txt('Fuel '+p.fuel.toFixed(1)+' kg',16,H-44,12);bar(16,H-38,160,6,p.fuel/C.fuel,'#5aa9ff');
  if(C.hyb){txt('Hybrid '+(p.ers>.01?'ready':'empty'),16,H-16,12);bar(100,H-24,76,6,p.ers,'#c26bff')}
- txt('TC always on'+'  ABS always on   physics 500 Hz',W-12,H-8,11,'#8a97a6','right');
  if(state==='count'){for(let i=0;i<5;i++){g.fillStyle=cdT>i*.8+.4?'#ff1a1a':'#2a1212';g.beginPath();g.arc(W/2+(i-2)*34,H*.18,13,0,7);g.fill()}}
  else if(T<2)txt('Go!',W/2,H*.18,34,'#2fd28a','center');
  if(ac&&osc){osc.frequency.value=(p.rpm/60)*4*.6;gn.gain.value=muted?0:.025+.05*p.thr}}
