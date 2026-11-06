@@ -2,6 +2,7 @@
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Endurance: Hypercar &amp; LMGT3</title>
+<script type="module" src="https://cdn.jsdelivr.net/npm/@google/model-viewer@4.0.0/dist/model-viewer.min.js"></script>
 <style>
 :root{color-scheme:dark;--bg:#0b0e12;--fg:#e8edf2;--mut:#8a97a6;--red:#e4002b;--org:#ff8a00;--pn:#141a22}
 html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
@@ -25,11 +26,17 @@ table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}td{padd
 <div class="row"><button data-c="0" class="on">Hypercar</button><button data-c="1">LMGT3</button></div>
 <p id="spec"></p>
 <p><label>Race length <select id="laps"><option value="2">2 laps</option><option value="3" selected>3 laps</option><option value="5">5 laps</option><option value="10">10 laps</option></select></label></p>
+<p><label>Car models URL (GitHub / jsDelivr folder)<input id="murl" placeholder="https://cdn.jsdelivr.net/gh/USER/REPO@main/models/" style="width:100%;box-sizing:border-box;margin-top:4px;padding:8px;border-radius:6px;border:1px solid #33414f;background:#1d2630;color:inherit"></label></p>
+<p><label>or choose GLB files from your computer <input id="mfile" type="file" accept=".glb" multiple></label></p>
+<p id="mstat">No models loaded yet: cars use basic boxes.</p>
 <button id="go">Start race</button>
 <p style="margin-top:14px"><b>Keys:</b> W / Up throttle, S / Down brake, A D / Left Right steer, R reset to track, T traction control on/off, M mute. Gamepad works too. Brake early: downforce makes high-speed corners much grippier than slow ones.</p>
 </div></div>
 <div class="ov" id="res" style="display:none"><div class="card"><h1>Chequered flag</h1><div id="tbl"></div><button id="again">Race again</button></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/DRACOLoader.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/meshopt_decoder.js"></script>
 <script>
 const $=id=>document.getElementById(id),cv=$('c'),g=cv.getContext('2d');
 const clamp=(v,a,b)=>v<a?a:v>b?b:v,sin=Math.sin,cos=Math.cos,PI=Math.PI;
@@ -89,7 +96,7 @@ function startRace(){
  cars.forEach(o=>o.g&&S3.remove(o.g));cars=[];camAng=camZ=undefined;T=0;cdT=0;LAPS=+$('laps').value;state='count';
  for(let k=0;k<35;k++){const c=k<17?0:1,ck=c?k-17:k,isP=c===selC&&ck===2,idx=(N-6-(k>>1)*3+N)%N,off=k%2?3.5:-3.5;
   const e=(c?GTG:HYG)[ck],o=mk(c,e[0],(isP?'You · ':'')+'#'+e[0]+' '+e[1],!isP,idx,off,clamp(0.975-ck*0.0007-Math.random()*0.004,0.8,1),e[2]);
-  cars.push(o);if(isP)P=o;}
+  o.mf=e[3];cars.push(o);if(isP)P=o;}
  $('menu').style.display='none';$('res').style.display='none';
  if(!ac)audio();}
 function track(o){
@@ -195,6 +202,28 @@ addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys[k]=1;if(k.starts
 addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
+const LOCAL={},MC={};let mOk=0,mBad=[];
+try{const u=localStorage.getItem('murl');if(u)$('murl').value=u}catch(e){}
+$('murl').onchange=()=>{try{localStorage.setItem('murl',$('murl').value)}catch(e){}};
+$('mfile').onchange=e=>{for(const f of e.target.files)LOCAL[f.name]=URL.createObjectURL(f);$('mstat').textContent='Selected '+e.target.files.length+' file(s): '+[...e.target.files].map(f=>f.name).join(', ')};
+function mstat(){$('mstat').textContent='Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', ')+' (open the browser console for the reason)':'')}
+function loadModel(file){
+ if(MC[file])return MC[file];
+ const base=($('murl').value||'').trim(),url=LOCAL[file]||(base?base.replace(/\/?$/,'/')+encodeURIComponent(file):null);
+ if(!url)return MC[file]=Promise.resolve(null);
+ return MC[file]=new Promise(res=>{try{const L=new THREE.GLTFLoader();
+  if(THREE.DRACOLoader){const d=new THREE.DRACOLoader();d.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/gltf/');L.setDRACOLoader(d)}
+  if(window.MeshoptDecoder)L.setMeshoptDecoder(window.MeshoptDecoder);
+  L.load(url,g=>{mOk++;mstat();res(g.scene)},undefined,e=>{console.warn('Model failed to load:',url,e);mBad.push(file);mstat();res(null)})}catch(e){console.warn(e);mBad.push(file);mstat();res(null)}})}
+// fit a loaded model to the car: length along +x, nose forward, centred, resting on the ground
+function fit(src,C){
+ const g=new THREE.Group(),m=src.clone(true),b=new THREE.Box3(),v=new THREE.Vector3(),sz=new THREE.Vector3(),c=new THREE.Vector3();g.add(m);
+ b.setFromObject(m);b.getSize(sz);if(sz.z>sz.x){m.rotation.y=PI/2;m.updateMatrixWorld(true);b.setFromObject(m);b.getSize(sz)}
+ b.getCenter(c);let hf=-1e9,hr=-1e9;
+ m.traverse(o=>{if(o.isMesh&&o.geometry.attributes.position){const p=o.geometry.attributes.position;for(let i=0;i<p.count;i+=3){v.fromBufferAttribute(p,i).applyMatrix4(o.matrixWorld);const t=(v.x-c.x)/sz.x;if(t>.3&&v.y>hf)hf=v.y;if(t<-.3&&v.y>hr)hr=v.y}}});
+ if(hf>hr+.02){m.rotation.y+=PI;m.updateMatrixWorld(true);b.setFromObject(m);b.getCenter(c)}
+ m.position.set(-c.x,-b.min.y,-c.z);g.scale.setScalar(C.len/sz.x);return g}
+function useModel(o){if(!o.mf)return;loadModel(o.mf).then(src=>{if(!src||!o.g)return;try{const m=fit(src,o.C);o.g.children.slice().forEach(k=>{if(k!==o.bm)o.g.remove(k)});o.g.add(m);o.bm.position.set(-o.C.len/2-.02,.8,0);o.bm.scale.set(1,.5,.8)}catch(e){console.warn('fit failed',o.mf,e)}})}
 let ac,osc,gn;
 function audio(){try{ac=new(window.AudioContext||window.webkitAudioContext)();osc=ac.createOscillator();osc.type='sawtooth';
  const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=1100;gn=ac.createGain();gn.gain.value=0;osc.connect(f);f.connect(gn);gn.connect(ac.destination);osc.start()}catch(e){ac=0}}
@@ -344,7 +373,7 @@ function car3d(o){const C=o.C,gp=new THREE.Group(),M=c=>new THREE.MeshLambertMat
  add(C.len,.42,C.wid-.3,M(col),0,.45,0);add(hy?1.7:1.9,hy?.45:.6,1.1,M(0x10151b),-.3,hy?.88:.98,0);add(1.2,.14,C.wid-.5,M(C.col),C.len/2-.5,.35,0);
  add(.5,.08,C.wid,M(C.col),-C.len/2+.1,hy?1.15:1.05,0);add(.5,.5,.08,M(0x222222),-C.len/2+.2,.9,.5);add(.5,.5,.08,M(0x222222),-C.len/2+.2,.9,-.5);
  for(const ax of[C.a,-C.b])for(const s of[-1,1]){const w=new THREE.Mesh(new THREE.CylinderGeometry(.36,.36,.42,14).rotateX(PI/2),M(0x0a0a0a));w.position.set(ax,.36,s*(C.wid/2-.1));gp.add(w)}
- o.bm=add(.1,.16,1.2,new THREE.MeshBasicMaterial({color:0x501010}),-C.len/2-.05,.65,0);o.g=gp;S3.add(gp)}
+ o.bm=add(.1,.16,1.2,new THREE.MeshBasicMaterial({color:0x501010}),-C.len/2-.05,.65,0);o.g=gp;S3.add(gp);useModel(o)}
 function render3d(){const p=P;
  for(const o of cars){if(!o.g)car3d(o);o.g.rotation.order="YZX";o.g.position.set(o.x,gY(o)+.02,o.y);{const t=offT(o);let pt=Math.atan(TS[o.idx]),rl=0;if(t>0){const f=2.4,c=cos(o.th),s=sin(o.th),hf=hAt(o.x+c*f,o.y+s*f),hb=hAt(o.x-c*f,o.y-s*f),hr=hAt(o.x-s*.9,o.y+c*.9),hl=hAt(o.x+s*.9,o.y-c*.9);pt=pt*(1-t)+Math.atan((hf-hb)/(2*f))*t;rl=Math.atan((hl-hr)/1.8)*t}o.g.rotation.set(rl,-o.th,pt)}o.bm.material.color.setHex(o.bl?0xff2020:0x501010)}
  if(camAng===undefined)camAng=p.th;let da=p.th-camAng;while(da>PI)da-=2*PI;while(da<-PI)da+=2*PI;camAng+=da*.12;
