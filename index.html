@@ -52,7 +52,7 @@ LD.set(.05);
 <p><label>Race length <select id="laps"><option value="2">2 laps</option><option value="3" selected>3 laps</option><option value="5">5 laps</option><option value="10">10 laps</option></select></label></p>
 <p id="mstat">Model loading directly from repository...</p>
 <button id="go">Start race</button>
-<p style="margin-top:14px"><b>Keys:</b> W / Up throttle, S / Down brake, A D / Left Right steer, R reset to track, T traction control on/off, M mute. Gamepad works too. Brake early: downforce makes high-speed corners much grippier than slow ones.</p>
+<p style="margin-top:14px"><b>Keys:</b> W / Up throttle, S / Down brake, A D / Left Right steer, R reset to track, T traction control on/off, B ABS on/off, M mute. Gamepad works too. Brake early: downforce makes high-speed corners much grippier than slow ones.</p>
 </div></div>
 <div class="ov" id="res" style="display:none"><div class="card"><h1>Chequered flag</h1><div id="tbl"></div><button id="again">Race again</button></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -69,8 +69,8 @@ addEventListener('resize',rs);rs();
 
 // ---------- classes (simplified BoP-style numbers) ----------
 const CLS=[
-{n:'Hypercar',s:'HYP',col:'#e4002b',m:1030,P:520e3,cd:1.0,cl:4.2,mu:1.95,a:1.7,b:1.4,len:5.0,wid:2.0,gears:[28,42,56,69,81,92,102],rpm:8500,brk:17,hyb:1,fuel:20,af:.44,
- info:'520 kW hybrid, 1,030 kg, hybrid boost above 190 km/h, heavy downforce, about 335 km/h top speed.'},
+{n:'Hypercar',s:'HYP',col:'#e4002b',m:1030,P:520e3,cd:1.0,cl:4.2,mu:1.95,a:1.7,b:1.4,len:5.0,wid:2.0,gears:[28,42,56,69,81,92,102],rpm:8500,brk:17,hyb:0,fuel:20,af:.44,
+ info:'520 kW, 1,030 kg, rear-wheel drive, no hybrid system, heavy downforce, about 335 km/h top speed.'},
 {n:'LMGT3',s:'GT3',col:'#ff8a00',m:1300,P:400e3,cd:1.25,cl:2.3,mu:1.75,a:1.5,b:1.2,len:4.9,wid:2.0,gears:[22,34,46,57,68,82],rpm:7500,brk:13,hyb:0,fuel:20,af:.42,
  info:'340 kW, 1,300 kg, rear-wheel drive, GT-style aero, about 280 km/h top speed.'}];
 CLS.forEach(c=>{c.R=.35;c.tw=1.6;c.Iw=2.5;c.vmax=Math.cbrt(c.P/(0.6*c.cd))*0.98;c.I=c.m*c.a*c.b*1.15});
@@ -131,7 +131,7 @@ const HYG=[
 ],GTG=[["10","Garage 59",0xff8000],["21","Vista AF Corse",0xc40000],["23","Heart of Racing",0x6f5c],["27","Heart of Racing",0x6f5c],["32","WRT",0x66b1],["33","TF Sport",0xffd100],["34","Racing Team Turkey",0xe30a17],["54","Vista AF Corse",0xc40000],["58","Garage 59",0xff8000],["61","Iron Lynx",0xa3a1],["69","WRT",0x66b1],["77","Proton",0xa3d8f],["78","Akkodis ASP",0x7b2ff7],["79","Iron Lynx",0xa3a1],["87","Akkodis ASP",0x7b2ff7],["88","Proton",0xa3d8f],["91","Manthey",0xe8e8e8],["92","The Bend Manthey",0x1a1a1a]];
 function mk(ci,num,name,ai,idx,off,skill,hue){
  const C=CLS[ci],h=TH[idx];
- return{C,ci,num,name,ai,skill,hue,x:TX[idx]-sin(h)*off,y:TY[idx]+cos(h)*off,th:h,u:0,v:0,r:0,steer:0,ax:0,ay:0,idx,lap:-1,prog:0,d:off,surf:1,
+ return{C,ci,num,name,ai,skill,hue,x:TX[idx]-sin(h)*off,y:TY[idx]+cos(h)*off,th:h,u:0,v:0,r:0,steer:0,ax:0,ay:0,idx,lap:-1,prog:0,abs:true,absA:0,d:off,surf:1,
  lapStart:0,last:0,best:0,fin:false,ft:0,fuel:C.fuel,wear:0,tt:75,om:[0,0,0,0],al:[0,0,0,0],ka:[0,0,0,0],sh:0,dr:0,tc:true,ers:.6,gi:0,rpm:3500,bl:false,base:off*0.4,lane:off,thr:0,brk:0};}
 function startRace(){
  cars.forEach(o=>o.g&&S3.remove(o.g));cars=[];camAng=camZ=undefined;T=0;cdT=0;LAPS=+$('laps').value;state='count';
@@ -177,13 +177,13 @@ function phys(o,h,thr,brk,st){
   const mu=C.mu*(1.12-.12*fz/(C.m*G*.4))*gm*(fr?1:1.08),kn=ka/.09,an=Math.tan(o.al[i])/.105,s=Math.hypot(kn,an)+1e-6,F=mu*fz*sin(1.5*Math.atan(1.73*s));
   const fxw=F*kn/s,fyw=-F*an/s;
   let td=(awd||i>1)?Tt/nd:0;if(i>1)td+=(i&1?-1:1)*(o.om[3]-o.om[2])*60;
-  let bt=Tb[i]*Tbt;if(ka<-.18)bt*=clamp(1+(ka+.18)*9,.2,1);
+  let bt=Tb[i]*Tbt;if(o.abs){if(ka<-.1){bt*=clamp(1+(ka+.1)*30,0,1);if(brk>.3&&o.u>8)o.absA=.12}}else if(ka<-.18)bt*=clamp(1+(ka+.18)*9,.2,1);
   const Ie=C.Iw+h*R*R*28.8*mu*fz/den;let w=o.om[i]+h*(td-fxw*R)/Ie;const dw=h*bt/Ie;w=Math.abs(w)<=dw?0:w-Math.sign(w)*dw;o.om[i]=w;o.ka[i]=ka;
   const fxb=fr?fxw*cd-fyw*sd:fxw,fyb=fr?fxw*sd+fyw*cd:fyw;Fx+=fxb;Fy+=fyb;Mz+=xi*fyb-yi*fxb}
  o.ax+=(Fx/m-o.ax)*Math.min(1,h*20);o.ay+=(Fy/m-o.ay)*Math.min(1,h*40);
  o.u+=(Fx/m+o.v*o.r)*h;o.v+=(Fy/m-u*o.r)*h;o.r+=(Mz/C.I-.8*o.r*Math.min(1,sp/30))*h;if(o.u<0)o.u=0;
  o.th+=o.r*h;o.x+=(o.u*cos(o.th)-o.v*sin(o.th))*h;o.y+=(o.u*sin(o.th)+o.v*cos(o.th))*h;
- o.bl=brk>.1;o.thr=thr;o.brk=brk;
+ o.bl=brk>.1;o.thr=thr;o.brk=brk;o.absA=Math.max(0,(o.absA||0)-h);
  o.wear=Math.min(1,o.wear+h*5e-5*((o.ay/G)**2+(o.ax/G)**2));
  o.tt+=h*(.6*((o.ay/G)**2+(o.ax/G)**2)-(o.tt-40)*.015*(1+sp/50));}
 function physOld(o,h,thr,brk,st){
@@ -239,7 +239,7 @@ function coll(){
 const keys={},inp={thr:0,brk:0,st:0};
 addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys[k]=1;if(k.startsWith('arrow')||k===' ')e.preventDefault();
  if(k==='r'&&P&&state!=='menu'){P.x=TX[P.idx];P.y=TY[P.idx];P.th=TH[P.idx];P.u=P.v=P.r=0;P.steer=0;P.om=[0,0,0,0];P.al=[0,0,0,0]}
- if(k==='m')muted=!muted;if(k==='t')tcOn=!tcOn});
+ if(k==='b'&&P)P.abs=!P.abs;if(k==='m')muted=!muted;if(k==='t')tcOn=!tcOn});
 addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
@@ -350,7 +350,7 @@ function hud(){
  panel(8,H-92,180,84);txt('Tyres '+Math.round((1-p.wear)*100)+'% life, '+Math.round(p.tt)+'°C',16,H-72,12);bar(16,H-66,160,6,1-p.wear,'#ffb020');
  txt('Fuel '+p.fuel.toFixed(1)+' kg',16,H-44,12);bar(16,H-38,160,6,p.fuel/C.fuel,'#5aa9ff');
  if(C.hyb){txt('Hybrid '+(p.ers>.01?'ready':'empty'),16,H-16,12);bar(100,H-24,76,6,p.ers,'#c26bff')}
- txt('TC '+(tcOn?'on':'off')+' (T)   physics 500 Hz',W-12,H-8,11,'#8a97a6','right');
+ txt('TC '+(tcOn?'on':'off')+' (T)   ABS '+(P&&P.abs?'on':'off')+' (B)   physics 500 Hz',W-12,H-8,11,'#8a97a6','right');
  if(state==='count'){for(let i=0;i<5;i++){g.fillStyle=cdT>i*.8+.4?'#ff1a1a':'#2a1212';g.beginPath();g.arc(W/2+(i-2)*34,H*.18,13,0,7);g.fill()}}
  else if(T<2)txt('Go!',W/2,H*.18,34,'#2fd28a','center');
  if(ac&&osc){osc.frequency.value=(p.rpm/60)*4*.6;gn.gain.value=muted?0:.025+.05*p.thr}}
@@ -364,7 +364,7 @@ S3.add(new THREE.HemisphereLight(0xffffff,0x3a5a35,.95));
  gg.setAttribute('color',new THREE.Float32BufferAttribute(cc,3));es.add(new THREE.Mesh(gg,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide})));
  const sm=new THREE.Mesh(new THREE.SphereGeometry(6,12,8),new THREE.MeshBasicMaterial({color:0xfff4d8}));sm.position.set(30,38,15);es.add(sm);
  S3.environment=pm.fromScene(es,.02).texture;pm.dispose()}catch(e){console.warn('env map failed',e)}}
-const MSELF=1.8; // self-lit share of each texture (0-1): raise if models still look dark
+const MSELF=.9; // self-lit share of each texture (0-1): raise if models still look dark
 const MBRIGHT=1.8; // raise/lower to make 3D models brighter/darker
 function fixMats(m){const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b;
  m.traverse(o=>{if(!o.isMesh)return;const cv=x=>{if(!x)return x;
