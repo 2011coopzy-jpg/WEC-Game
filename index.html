@@ -264,7 +264,7 @@ function fit(src,C){
  m.traverse(o=>{if(o.isMesh&&o.geometry.attributes.position){const p=o.geometry.attributes.position;for(let i=0;i<p.count;i+=3){v.fromBufferAttribute(p,i).applyMatrix4(o.matrixWorld);const t=(v.x-c.x)/sz.x;if(t>.3&&v.y>hf)hf=v.y;if(t<-.3&&v.y>hr)hr=v.y}}});
  if(hf>hr+.02){m.rotation.y+=PI;m.updateMatrixWorld(true);b.setFromObject(m);b.getCenter(c)}
  m.position.set(-c.x,-b.min.y,-c.z);g.scale.setScalar(C.len/sz.x);return g}
-function useModel(o){if(!o.mf)return;loadModel(o.mf).then(src=>{if(!src||!o.g)return;try{const m=fit(src,o.C);o.g.children.slice().forEach(k=>{if(k!==o.bm)o.g.remove(k)});o.g.add(m);o.bm.position.set(-o.C.len/2-.02,.8,0);o.bm.scale.set(1,.5,.8)}catch(e){console.warn('fit failed',o.mf,e)}})}
+function useModel(o){if(!o.mf)return;loadModel(o.mf).then(src=>{if(!src||!o.g)return;try{const m=fit(src,o.C);o.g.children.slice().forEach(k=>o.g.remove(k));o.g.add(m);fixMats(m)}catch(e){console.warn('fit failed',o.mf,e)}})}
 let ac,osc,gn;
 function audio(){try{ac=new(window.AudioContext||window.webkitAudioContext)();osc=ac.createOscillator();osc.type='sawtooth';
  const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=1100;gn=ac.createGain();gn.gain.value=0;osc.connect(f);f.connect(gn);gn.connect(ac.destination);osc.start()}catch(e){ac=0}}
@@ -358,7 +358,15 @@ function hud(){
 const R3=new THREE.WebGLRenderer({antialias:true,logarithmicDepthBuffer:true});R3.domElement.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:0';document.body.insertBefore(R3.domElement,cv);
 const S3=new THREE.Scene(),C3=new THREE.PerspectiveCamera(68,1,1,4000);S3.background=new THREE.Color(0x8fb8e8);S3.fog=new THREE.Fog(0x8fb8e8,250,1800);
 function rs3(){R3.setPixelRatio(dpr);R3.setSize(W,H,false);C3.aspect=W/H;C3.updateProjectionMatrix()}addEventListener('resize',rs3);rs3();
-S3.add(new THREE.HemisphereLight(0xffffff,0x3a5a35,.95));const sun=new THREE.DirectionalLight(0xffffff,.8);sun.position.set(300,500,200);S3.add(sun);
+S3.add(new THREE.HemisphereLight(0xffffff,0x3a5a35,.95));
+{try{const pm=new THREE.PMREMGenerator(R3),es=new THREE.Scene(),gg=new THREE.SphereGeometry(50,32,16),ps=gg.attributes.position,cc=[],a=new THREE.Color(0x8fb8e8),b=new THREE.Color(0xffffff),c=new THREE.Color(0x5a6b55),t=new THREE.Color();
+ for(let i=0;i<ps.count;i++){const y=ps.getY(i)/50;t.copy(y>0?b.clone().lerp(a,Math.pow(y,.6)):b.clone().lerp(c,Math.min(1,-y*2)));cc.push(t.r,t.g,t.b)}
+ gg.setAttribute('color',new THREE.Float32BufferAttribute(cc,3));es.add(new THREE.Mesh(gg,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide})));
+ const sm=new THREE.Mesh(new THREE.SphereGeometry(6,12,8),new THREE.MeshBasicMaterial({color:0xfff4d8}));sm.position.set(30,38,15);es.add(sm);
+ S3.environment=pm.fromScene(es,.02).texture;pm.dispose()}catch(e){console.warn('env map failed',e)}}
+function fixMats(m){m.traverse(o=>{if(!o.isMesh)return;(Array.isArray(o.material)?o.material:[o.material]).forEach(x=>{if(!x)return;
+ if('metalness' in x){x.metalness=Math.min(x.metalness,.6);x.envMapIntensity=1.1}
+ if(x.emissive&&!x.emissiveMap&&x.emissive.getHex()===0xffffff)x.emissive.setHex(0);x.needsUpdate=true})})}const sun=new THREE.DirectionalLight(0xffffff,.8);sun.position.set(300,500,200);S3.add(sun);
 let camAng,camZ,HT;
 function offT(o){return clamp((Math.abs(o.d)-(TW/2+1))/2,0,1)}
 function gY(o){const t=offT(o);return t>0?zAt(o)*(1-t)+(hAt(o.x,o.y)+.05)*t:zAt(o)}
