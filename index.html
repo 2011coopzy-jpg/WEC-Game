@@ -244,7 +244,7 @@ addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
 const MC={};let mOk=0,mBad=[];let onMP=()=>{};
-function mstat(){$('mstat').textContent='Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
+function mstat(){$('mstat').textContent='Build 6 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
 function loadModel(file){
  if(MC[file])return MC[file];
  // Relative path: loads directly from the repository relative to index.html
@@ -364,9 +364,13 @@ S3.add(new THREE.HemisphereLight(0xffffff,0x3a5a35,.95));
  gg.setAttribute('color',new THREE.Float32BufferAttribute(cc,3));es.add(new THREE.Mesh(gg,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide})));
  const sm=new THREE.Mesh(new THREE.SphereGeometry(6,12,8),new THREE.MeshBasicMaterial({color:0xfff4d8}));sm.position.set(30,38,15);es.add(sm);
  S3.environment=pm.fromScene(es,.02).texture;pm.dispose()}catch(e){console.warn('env map failed',e)}}
-function fixMats(m){m.traverse(o=>{if(!o.isMesh)return;(Array.isArray(o.material)?o.material:[o.material]).forEach(x=>{if(!x)return;
- if('metalness' in x){x.metalness=Math.min(x.metalness,.6);x.envMapIntensity=1.1}
- if(x.emissive&&!x.emissiveMap&&x.emissive.getHex()===0xffffff)x.emissive.setHex(0);x.needsUpdate=true})})}const sun=new THREE.DirectionalLight(0xffffff,.8);sun.position.set(300,500,200);S3.add(sun);
+function fixMats(m){const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b;
+ m.traverse(o=>{if(!o.isMesh)return;const cv=x=>{if(!x)return x;
+  const n=new THREE.MeshLambertMaterial({color:x.color?x.color.clone():new THREE.Color(0xffffff),map:x.map||null,vertexColors:!!x.vertexColors,transparent:!!x.transparent,opacity:x.opacity===undefined?1:x.opacity,alphaTest:x.alphaTest||0,side:THREE.DoubleSide});
+  if(x.emissiveMap){n.emissiveMap=x.emissiveMap;n.emissive=new THREE.Color(1,1,1)}else if(x.emissive&&lum(x.emissive)>.02&&lum(x.emissive)<.99)n.emissive=x.emissive.clone();
+  if(!n.map&&!n.vertexColors&&lum(n.color)<.05)n.color.setHex(0x2b2f35);
+  n.name=x.name;return n};
+  o.material=Array.isArray(o.material)?o.material.map(cv):cv(o.material);o.castShadow=o.receiveShadow=false})}
 let camAng,camZ,HT;
 function offT(o){return clamp((Math.abs(o.d)-(TW/2+1))/2,0,1)}
 function gY(o){const t=offT(o);return t>0?zAt(o)*(1-t)+(hAt(o.x,o.y)+.05)*t:zAt(o)}
@@ -427,7 +431,7 @@ function car3d(o){const C=o.C,gp=new THREE.Group(),M=c=>new THREE.MeshLambertMat
  add(C.len,.42,C.wid-.3,M(col),0,.45,0);add(hy?1.7:1.9,hy?.45:.6,1.1,M(0x10151b),-.3,hy?.88:.98,0);add(1.2,.14,C.wid-.5,M(C.col),C.len/2-.5,.35,0);
  add(.5,.08,C.wid,M(C.col),-C.len/2+.1,hy?1.15:1.05,0);add(.5,.5,.08,M(0x222222),-C.len/2+.2,.9,.5);add(.5,.5,.08,M(0x222222),-C.len/2+.2,.9,-.5);
  for(const ax of[C.a,-C.b])for(const s of[-1,1]){const w=new THREE.Mesh(new THREE.CylinderGeometry(.36,.36,.42,14).rotateX(PI/2),M(0x0a0a0a));w.position.set(ax,.36,s*(C.wid/2-.1));gp.add(w)}
- o.bm=add(.1,.16,1.2,new THREE.MeshBasicMaterial({color:0x501010}),-C.len/2-.05,.65,0);o.g=gp;S3.add(gp);useModel(o)}
+ o.bm=new THREE.Mesh(new THREE.BoxGeometry(.1,.16,1.2),new THREE.MeshBasicMaterial({color:0x501010}));o.g=gp;S3.add(gp);useModel(o)}
 function render3d(){const p=P;
  for(const o of cars){if(!o.g)car3d(o);o.g.rotation.order="YZX";o.g.position.set(o.x,gY(o)+.02,o.y);{const t=offT(o);let pt=Math.atan(TS[o.idx]),rl=0;if(t>0){const f=2.4,c=cos(o.th),s=sin(o.th),hf=hAt(o.x+c*f,o.y+s*f),hb=hAt(o.x-c*f,o.y-s*f),hr=hAt(o.x-s*.9,o.y+c*.9),hl=hAt(o.x+s*.9,o.y-c*.9);pt=pt*(1-t)+Math.atan((hf-hb)/(2*f))*t;rl=Math.atan((hl-hr)/1.8)*t}o.g.rotation.set(rl,-o.th,pt)}o.bm.material.color.setHex(o.bl?0xff2020:0x501010)}
  if(camAng===undefined)camAng=p.th;let da=p.th-camAng;while(da>PI)da-=2*PI;while(da<-PI)da+=2*PI;camAng+=da*.12;
