@@ -17,7 +17,14 @@ button,select{font:inherit;color:var(--fg);background:#1d2630;border:1px solid #
 .row button{flex:1;font-weight:700}
 .row button.on[data-c="0"]{background:var(--red);border-color:var(--red)}
 .row button.on[data-c="1"]{background:var(--org);border-color:var(--org);color:#111}
-#clist{display:grid;gap:6px;max-height:240px;overflow:auto;margin:10px 0 4px;padding-right:2px}
+#mcard{max-width:980px}
+#clist{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;max-height:min(58vh,520px);overflow:auto;margin:12px 0 8px;padding-right:4px;align-content:start}
+.team{background:#10161d;border:1px solid #232d38;border-radius:10px;padding:8px}
+.team h3{margin:0 0 6px;padding:0 4px;font-size:12px;font-weight:700;color:var(--mut);letter-spacing:.03em;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.team .cars{display:grid;gap:5px}
+.mbar{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:6px}
+.mbar label{color:var(--mut);font-size:13px}
+#go{background:var(--red);border-color:var(--red);font-weight:800;padding:10px 28px}
 #clist button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;padding:8px 12px;font-size:13px;background:#1a222c}
 #clist button .sw{width:6px;align-self:stretch;border-radius:3px;flex:none}
 #clist button .no{font-weight:800;min-width:38px}
@@ -51,17 +58,11 @@ window.LD={set(p,t){p=Math.max(0,Math.min(1,p));document.getElementById('ldf').s
  done(){const e=document.getElementById('ld');e.classList.add('done');setTimeout(()=>e.style.display='none',600)}};
 LD.set(.05);
 </script>
-<div class="ov" id="menu" style="display:none"><div class="card">
+<div class="ov" id="menu" style="display:none"><div class="card" id="mcard">
 <h1>WEC Game</h1>
-<p>Spa-Francorchamps. Multi-class prototype race: 17 Hypercars and 18 LMGT3 cars share one circuit. Faster cars lap slower ones, so watch your mirrors and pick your moments.</p>
 <div class="row"><button data-c="0" class="on">Hypercar</button><button data-c="1">LMGT3</button></div>
-<p id="spec"></p>
-<small id="cltitle">Choose your car</small>
 <div id="clist"></div>
-<p><label>Race length <select id="laps"><option value="2">2 laps</option><option value="3" selected>3 laps</option><option value="5">5 laps</option><option value="10">10 laps</option></select></label></p>
-<p id="mstat">Model loading directly from repository...</p>
-<button id="go">Start race</button>
-<p style="margin-top:14px"><b>Keys:</b> W / Up throttle, S / Down brake, A D / Left Right steer, R reset to track, M mute. Traction control and ABS are always on. Gamepad works too. Brake early: downforce makes high-speed corners much grippier than slow ones.</p>
+<div class="mbar"><label>Race length <select id="laps"><option value="2">2 laps</option><option value="3" selected>3 laps</option><option value="5">5 laps</option><option value="10">10 laps</option></select></label><button id="go">Start race</button></div>
 </div></div>
 <div class="ov" id="res" style="display:none"><div class="card"><h1>Chequered flag</h1><div id="rtabs"></div><div id="tbl"></div><button id="again">Race again</button></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -314,7 +315,7 @@ addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
 const MC={};let mOk=0,mBad=[];let onMP=()=>{};
-function mstat(){$('mstat').textContent='Build 24 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
+function mstat(){if(mBad.length)console.warn('Models not loaded:',mBad.join(', '))}
 // Some downloaded models contain empty (null) vertex attributes, which crash the renderer every frame. Strip them.
 function cleanModel(sc,file){let fixed=0;sc.traverse(o=>{if(!o.geometry)return;const G=o.geometry,A=G.attributes;
   for(const k in A)if(!A[k]){delete A[k];fixed++}
@@ -329,10 +330,10 @@ function loadModel(file){
  const L=new THREE.GLTFLoader();
  try{if(THREE.DRACOLoader){const d=new THREE.DRACOLoader();d.setDecoderPath('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/draco/gltf/');L.setDRACOLoader(d)}
   if(window.MeshoptDecoder)L.setMeshoptDecoder(window.MeshoptDecoder)}catch(e){console.warn(e)}
- return MC[file]=new Promise(res=>{let k=0;
-  const next=()=>{if(k>=nm.length){mBad.push(file);mstat();onMP(file,1);res(null);return}
+ return MC[file]=new Promise(res=>{let k=0,why='';
+  const next=()=>{if(k>=nm.length){mBad.push(file+' ('+(why||'not found')+')');mstat();onMP(file,1);res(null);return}
    const url='./'+encodeURIComponent(nm[k++]);
-   try{L.load(url,g=>{mOk++;mstat();onMP(file,1);if(nm[k-1]!==file)console.info('Model loaded as',nm[k-1]);res(cleanModel(g.scene,file))},x=>{if(x&&x.lengthComputable&&x.total)onMP(file,Math.min(.99,x.loaded/x.total))},e=>{console.warn('Model failed to load:',url,e);next()})}catch(e){console.warn(e);next()}};
+   try{L.load(url,g=>{let r=null;try{r=cleanModel(g.scene,file);mOk++}catch(e){console.warn('Model processing failed',file,e)}onMP(file,1);res(r)},x=>{if(x&&x.lengthComputable&&x.total)onMP(file,Math.min(.99,x.loaded/x.total))},e=>{console.warn('Model failed to load:',url,e);const m=String((e&&(e.message||e.type))||e);if(!why||(/404/.test(why)&&!/404/.test(m)))why=/404/.test(m)?'file not found':m.slice(0,70);next()})}catch(e){console.warn(e);why=why||String(e.message||e).slice(0,70);next()}};
   next()})}
 // fit a loaded model to the car: length along +x, nose forward, centred, resting on the ground
 function fit(src,C){
@@ -371,12 +372,14 @@ function renderRes(ci){resC=ci;const o=cars.filter(c=>c.ci===ci).sort(cmp);
 function showRes(){$('res').style.display='flex';renderRes(P?P.ci:0)}
 $('again').onclick=()=>{$('res').style.display='none';$('menu').style.display='flex';state='menu'};
 $('go').onclick=startRace;
-function spec(){$('spec').textContent=CLS[selC].info;
+function spec(){
  const L=selC?GTG:HYG,hex=n=>'#'+n.toString(16).padStart(6,'0'),box=$('clist');box.innerHTML='';
- $('cltitle').textContent='Choose your '+CLS[selC].n+' ('+L.length+' cars)';
- L.forEach((e,i)=>{const b=document.createElement('button');b.className=i===selCar[selC]?'sel':'';
-  b.innerHTML='<span class="sw" style="background:'+hex(e[2])+'"></span><span class="no">#'+e[0]+'</span><span class="tm">'+e[1]+'</span>'+(e[3]?'<span class="tag">3D</span>':'');
-  b.onclick=()=>{selCar[selC]=i;spec()};box.appendChild(b)})}spec();
+ const teams=[];L.forEach((e,i)=>{let t=teams.find(x=>x.n===e[1]);if(!t)teams.push(t={n:e[1],c:[]});t.c.push([e,i])});
+ teams.forEach(t=>{const d=document.createElement('div');d.className='team';d.innerHTML='<h3>'+t.n+'</h3>';const w=document.createElement('div');w.className='cars';
+  t.c.forEach(([e,i])=>{const b=document.createElement('button');b.className=i===selCar[selC]?'sel':'';
+   b.innerHTML='<span class="sw" style="background:'+hex(e[2])+'"></span><span class="no">#'+e[0]+'</span><span class="tm"></span>'+(e[3]?'<span class="tag">3D</span>':'');
+   b.onclick=()=>{selCar[selC]=i;spec()};w.appendChild(b)});
+  d.appendChild(w);box.appendChild(d)})}spec();
 document.querySelectorAll('.row button').forEach(b=>b.onclick=()=>{selC=+b.dataset.c;document.querySelectorAll('.row button').forEach(x=>x.classList.toggle('on',x===b));spec()});
 
 // ---------- rendering ----------
@@ -437,7 +440,7 @@ function hud(){
  if(ac&&osc){osc.frequency.value=(p.rpm/60)*4*.6;gn.gain.value=muted?0:.025+.05*p.thr}}
 // ---------- 3D scene (three.js) ----------
 const R3=new THREE.WebGLRenderer({antialias:true,logarithmicDepthBuffer:true});R3.domElement.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:0';document.body.insertBefore(R3.domElement,cv);
-const S3=new THREE.Scene(),C3=new THREE.PerspectiveCamera(68,1,2.5,3000);S3.background=new THREE.Color(0x8fb8e8);S3.fog=new THREE.Fog(0x8fb8e8,250,1800);
+const S3=new THREE.Scene(),C3=new THREE.PerspectiveCamera(68,1,.6,3000);S3.background=new THREE.Color(0x8fb8e8);S3.fog=new THREE.Fog(0x8fb8e8,250,1800);
 function rs3(){R3.setPixelRatio(dpr);R3.setSize(W,H,false);C3.aspect=W/H;C3.updateProjectionMatrix()}addEventListener('resize',rs3);rs3();
 const TUNE={},REG={},TUNI={};let TSKY=.95,TSUN=0,CAMOFF=0,CAMDIST=1,tPause=false;
 const HEMI=new THREE.HemisphereLight(0xffffff,0x3a5a35,TSKY),SUN=new THREE.DirectionalLight(0xfff1d6,TSUN);SUN.position.set(30,38,15);S3.add(HEMI);S3.add(SUN);S3.add(SUN.target);
@@ -482,7 +485,7 @@ function fixMats(m,f){const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b,R=treg(f||'?'),
  if(f)applyTune(f)}
 let camAng,camZ,HT;
 function offT(o){return clamp((Math.abs(o.d)-(TW/2+1))/2,0,1)}
-function gY(o){const t=offT(o);return t>0?zAt(o)*(1-t)+(hAt(o.x,o.y)+.05)*t:zAt(o)}
+function gY(o){const t=offT(o);return t>0?zAt(o)*(1-t)+(hMesh(o.x,o.y)+.15)*t:zAt(o)}
 function slopeAt(o){if(offT(o)<=0)return TS[o.idx];const c=cos(o.th),s=sin(o.th);return(hAt(o.x+c*2.5,o.y+s*2.5)-hAt(o.x-c*2.5,o.y-s*2.5))/5}
 function hAt(x,z){const fx=(x-HT.x0)/HT.cs,fz=(z-HT.z0)/HT.cs,i=clamp(Math.floor(fx),0,HT.nx-2),j=clamp(Math.floor(fz),0,HT.nz-2),a=clamp(fx-i,0,1),b=clamp(fz-j,0,1),P=HT.P,k=j*HT.nx+i,y=q=>P[q*3+1];return(y(k)*(1-a)+y(k+1)*a)*(1-b)+(y(k+HT.nx)*(1-a)+y(k+HT.nx+1)*a)*b}
 // height of the terrain mesh exactly as drawn (same triangles as the mesh), used to lay decals on it
@@ -559,23 +562,23 @@ function applyTex(f,t){const e=TEXF[f];for(const m of TEXM[e.k]){if(e.w==='c'){m
  function strip(a,b,y,col){const pos=[],cl=[],ix=[];
   for(let i=0;i<=N;i++){const k=i%N,nx=-sin(TH[k]),nz=cos(TH[k]),c=col(i);for(const o of[a,b]){pos.push(TX[k]+nx*o,y+TZ[k],TY[k]+nz*o);cl.push(c[0],c[1],c[2])}if(i<N){const j=i*2;ix.push(j,j+2,j+1,j+1,j+2,j+3)}}
   const G=new THREE.BufferGeometry();G.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));G.setAttribute('color',new THREE.Float32BufferAttribute(cl,3));G.setIndex(ix);G.computeVertexNormals();
-  S3.add(new THREE.Mesh(G,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide})))}
+  S3.add(new THREE.Mesh(G,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4})))}
  function ribbon(i0,i1,offs,yf,mat,tile){const pos=[],uv=[],ix=[];let c=0;
   for(let i=i0;i<=i1;i++){const k=i%N,nx=-sin(TH[k]),nz=cos(TH[k]),ab=offs(i);
    for(const o of ab){const x=TX[k]+nx*o,z=TY[k]+nz*o;pos.push(x,yf(k,x,z),z);uv.push(o/tile,i*DS/tile)}
-   if(i<i1){const j=c*2;ix.push(j,j+2,j+1,j+1,j+2,j+3)}c++}
+   if(i<i1){const m=ab.length,j=c*m;for(let q=0;q<m-1;q++){const a0=j+q,b0=j+m+q;ix.push(a0,b0,a0+1,a0+1,b0,b0+1)}}c++}
   const G=new THREE.BufferGeometry();G.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));G.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));G.setIndex(ix);G.computeVertexNormals();
   const m=new THREE.Mesh(G,mat);S3.add(m);return m}
- const asM=new THREE.MeshStandardMaterial({color:0x2b2e33,roughness:.96,metalness:0,envMapIntensity:.25,side:THREE.DoubleSide});TEXM.asphalt.push(asM);
+ const asM=new THREE.MeshStandardMaterial({color:0x2b2e33,roughness:.96,metalness:0,envMapIntensity:.25,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-1});TEXM.asphalt.push(asM);
  ribbon(0,N,()=>[-TW/2,TW/2],k=>TZ[k]+.03,asM,TEXD.asphalt.tile);
- ribbon(0,2,()=>[-TW/2,TW/2],k=>TZ[k]+.08,new THREE.MeshLambertMaterial({color:0xffffff,side:THREE.DoubleSide}),4);
+ ribbon(0,2,()=>[-TW/2,TW/2],k=>TZ[k]+.08,new THREE.MeshLambertMaterial({color:0xffffff,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-6,polygonOffsetUnits:-6}),4);
  for(const s of[1,-1])strip(s>0?TW/2:-TW/2-1.6,s>0?TW/2+1.6:-TW/2,.1,i=>(i>>2)%2?[.8,.05,.1]:[.95,.95,.95]);
  strip(-TW/2+.3,-TW/2+.6,.14,()=>[1,1,1]);strip(TW/2-.6,TW/2-.3,.14,()=>[1,1,1]);
  {const x0=-700,x1=1200,z0=-500,z1=2200,cs=10,nx=Math.ceil((x1-x0)/cs)+1,nz=Math.ceil((z1-z0)/cs)+1,PP=[],CC=[],UV=[],ix=[],sm=[];
   for(let i=0;i<N;i+=3)sm.push(i);
   const GT=TEXD.grass.tile;
   for(let a=0;a<nz;a++)for(let b=0;b<nx;b++){const x=x0+b*cs,z=z0+a*cs;let sw=0,sz=0,cap=1e9,bd=1e12,bz=0,bi=0;
-   for(const i of sm){const dx=x-TX[i],dz=z-TY[i],q2=dx*dx+dz*dz,w=1/(q2+60),c=TZ[i]-.45+.15*Math.max(0,Math.sqrt(q2)-9);if(q2<900&&c<cap)cap=c;if(q2<bd){bd=q2;bz=TZ[i];bi=i}sw+=w;sz+=w*TZ[i]}
+   for(const i of sm){const dx=x-TX[i],dz=z-TY[i],q2=dx*dx+dz*dz,w=1/(q2+60),c=TZ[i]-.8+.15*Math.max(0,Math.sqrt(q2)-9);if(q2<1600&&c<cap)cap=c;if(q2<bd){bd=q2;bz=TZ[i];bi=i}sw+=w;sz+=w*TZ[i]}
    const nn=(sin(x*.05)+sin(z*.043)+sin((x+z)*.021))*.03;const dm=Math.sqrt(bd),tt=clamp((dm-12)/40,0,1);
    const gwn=GW[((x-TX[bi])*-sin(TH[bi])+(z-TY[bi])*cos(TH[bi]))<0?0:1][bi],hn=bz-.45-.1*Math.max(0,dm-9-(gwn>1.5?gwn+1.6:0)),hi=sz/(sw+4e-6)-.45;
    const hill=clamp((dm-70)/140,0,1)*((sin(x*.0042+1.3)*cos(z*.0036)+.6*sin((x+z)*.0058+.7)+.35*sin(x*.011)*sin(z*.0095))*10+9),fp=(sin(x*.0061+z*.0043)+sin(z*.0097-x*.0033)+sin((x+z)*.0141))/3;
@@ -584,9 +587,10 @@ function applyTex(f,t){const e=TEXF[f];for(const m of TEXM[e.k]){if(e.w==='c'){m
   const GG=new THREE.BufferGeometry();GG.setAttribute('position',new THREE.Float32BufferAttribute(PP,3));GG.setAttribute('color',new THREE.Float32BufferAttribute(CC,3));GG.setAttribute('uv',new THREE.Float32BufferAttribute(UV,2));GG.setIndex(ix);GG.computeVertexNormals();HT={x0,z0,cs,nx,nz,P:PP};
   const gM=new THREE.MeshStandardMaterial({vertexColors:true,map:grassTex(),roughness:1,metalness:0,envMapIntensity:.2,side:THREE.DoubleSide});TEXM.grass.push(gM);S3.add(new THREE.Mesh(GG,gM));
   // gravel traps (physics zones come from GW[])
-  const grM=new THREE.MeshStandardMaterial({color:0x8c8578,roughness:1,metalness:0,envMapIntensity:.15,side:THREE.DoubleSide});TEXM.gravel.push(grM);
+  const grM=new THREE.MeshStandardMaterial({color:0x8c8578,roughness:1,metalness:0,envMapIntensity:.15,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});TEXM.gravel.push(grM);
   for(const sd of[0,1]){const sg=sd?1:-1;let i=0;while(i<N){if(GW[sd][i]>1.5){let j=i;while(j+1<N&&GW[sd][j+1]>1.5)j++;
-    ribbon(i,j,k=>[sg*(TW/2+1.6),sg*(TW/2+1.6+GW[sd][k%N])],(k,x,z)=>hMesh(x,z)+.12,grM,TEXD.gravel.tile);i=j+1}else i++}}
+    let mw=0;for(let k=i;k<=j;k++)mw=Math.max(mw,GW[sd][k%N]);const ns=Math.max(3,Math.ceil(mw/1.5));
+    ribbon(i,j,k=>{const w=GW[sd][k%N],r=[];for(let q=0;q<=ns;q++)r.push(sg*(TW/2+1.6+w*q/ns));return r},(k,x,z)=>hMesh(x,z)+.2,grM,TEXD.gravel.tile);i=j+1}else i++}}
   scenery()}
 })();
 function car3d(o){const C=o.C,gp=new THREE.Group(),M=c=>new THREE.MeshLambertMaterial({color:c}),add=(w,h,d,c,x,y,z)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),c);m.position.set(x,y,z);gp.add(m);return m};
