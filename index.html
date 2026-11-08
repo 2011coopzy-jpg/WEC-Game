@@ -282,7 +282,7 @@ addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
 const MC={};let mOk=0,mBad=[];let onMP=()=>{};
-function mstat(){$('mstat').textContent='Build 16 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
+function mstat(){$('mstat').textContent='Build 17 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
 function loadModel(file){
  if(MC[file])return MC[file];
  // Relative paths: loads directly from the repository next to index.html.
@@ -402,7 +402,7 @@ const R3=new THREE.WebGLRenderer({antialias:true,logarithmicDepthBuffer:true});R
 const S3=new THREE.Scene(),C3=new THREE.PerspectiveCamera(68,1,1,4000);S3.background=new THREE.Color(0x8fb8e8);S3.fog=new THREE.Fog(0x8fb8e8,250,1800);
 function rs3(){R3.setPixelRatio(dpr);R3.setSize(W,H,false);C3.aspect=W/H;C3.updateProjectionMatrix()}addEventListener('resize',rs3);rs3();
 const TUNE={},REG={},TUNI={};let TSKY=.95,TSUN=0,CAMOFF=0,CAMDIST=1,tPause=false;
-try{const sv=JSON.parse(localStorage.getItem('tuneV1')||'null');if(sv){Object.assign(TUNE,sv.m||{});if(sv.sky!=null)TSKY=sv.sky;if(sv.sun!=null)TSUN=sv.sun}}catch(e){}
+try{const sv=JSON.parse(localStorage.getItem('tuneV2')||'null');if(sv){Object.assign(TUNE,sv.m||{});if(sv.sky!=null)TSKY=sv.sky;if(sv.sun!=null)TSUN=sv.sun}}catch(e){}
 const HEMI=new THREE.HemisphereLight(0xffffff,0x3a5a35,TSKY),SUN=new THREE.DirectionalLight(0xfff1d6,TSUN);SUN.position.set(30,38,15);S3.add(HEMI);S3.add(SUN);S3.add(SUN.target);
 {try{const pm=new THREE.PMREMGenerator(R3),es=new THREE.Scene(),gg=new THREE.SphereGeometry(50,32,16),ps=gg.attributes.position,cc=[],a=new THREE.Color(0x8fb8e8),b=new THREE.Color(0xffffff),c=new THREE.Color(0x5a6b55),t=new THREE.Color();
  for(let i=0;i<ps.count;i++){const y=ps.getY(i)/50;t.copy(y>0?b.clone().lerp(a,Math.pow(y,.6)):b.clone().lerp(c,Math.min(1,-y*2)));cc.push(t.r,t.g,t.b)}
@@ -411,10 +411,13 @@ const HEMI=new THREE.HemisphereLight(0xffffff,0x3a5a35,TSKY),SUN=new THREE.Direc
  S3.environment=pm.fromScene(es,.02).texture;pm.dispose()}catch(e){console.warn('env map failed',e)}}
 // ---------- per-model tuning (live sliders in the Tuner panel) ----------
 const TDEF={yaw:0,pitch:0,roll:0,scale:100,raise:0,bright:1.1,glow:.12,env:.8,metal:.12,rough:1,sat:1,hue:0,r:1,g:1,b:1};
-function tk(f){return TUNE[f]||(TUNE[f]=Object.assign({},TDEF))}
+const TBAKE={ // settings built into the game (the Tuner sliders start from these)
+ '2026_af_corsa_ferrari_499p.glb':{yaw:-21},
+ 'alpine_a424__www.vecarz.com.glb':{scale:98,bright:1.05,raise:-.12,glow:.42,env:.25,metal:0,rough:1.75,sat:2,r:1.11,b:1.11}};
+function tk(f){return TUNE[f]||(TUNE[f]=Object.assign({},TDEF,TBAKE[f]||{}))}
 function treg(f){return REG[f]||(REG[f]={mats:[],pivs:[]})}
 function tuni(f){return TUNI[f]||(TUNI[f]={uSat:{value:1},uHue:{value:0}})}
-function tsave(){try{localStorage.setItem('tuneV1',JSON.stringify({m:TUNE,sky:TSKY,sun:TSUN}))}catch(e){}}
+function tsave(){try{localStorage.setItem('tuneV2',JSON.stringify({m:TUNE,sky:TSKY,sun:TSUN}))}catch(e){}}
 function applyTune(f){const t=tk(f),u=tuni(f);u.uSat.value=t.sat;u.uHue.value=t.hue*PI/180;
  for(const e of treg(f).mats){const n=e.n;
   n.color.copy(e.col);if(!n.transparent)n.color.multiplyScalar(t.bright);n.color.r*=t.r;n.color.g*=t.g;n.color.b*=t.b;
@@ -535,7 +538,7 @@ requestAnimationFrame(frame);
  $t('t_cd').oninput=e=>{CAMDIST=+e.target.value;$t('o_cd').textContent=CAMDIST.toFixed(2)};
  $t('t_pause').onchange=e=>{tPause=e.target.checked};
  $t('t_model').onchange=e=>{cur=e.target.value;sync();$t('t_txt').style.display='none'};
- $t('t_reset').onclick=()=>{TUNE[cur]=Object.assign({},TDEF);applyTune(cur);sync();tsave()};
+ $t('t_reset').onclick=()=>{delete TUNE[cur];tk(cur);applyTune(cur);sync();tsave()};
  $t('t_copy').onclick=()=>{const t=tk(cur),x=$t('t_txt');x.value=files[cur].n.join(' ')+' '+files[cur].t+' ('+cur+')\n'+Object.keys(TDEF).map(k=>k+': '+t[k]).join(', ')+'\nsky: '+TSKY+', sun: '+TSUN;x.style.display='block';x.select();try{navigator.clipboard.writeText(x.value)}catch(e){}};
  $t('t_model').value=cur;tb.onclick=()=>{tn.style.display=tn.style.display==='block'?'none':'block';if(tn.style.display==='block')sync()};
  for(const f of keys)if(TUNE[f])applyTune(f);HEMI.intensity=TSKY;SUN.intensity=TSUN}
