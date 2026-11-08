@@ -314,7 +314,13 @@ addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
 const MC={};let mOk=0,mBad=[];let onMP=()=>{};
-function mstat(){$('mstat').textContent='Build 23 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
+function mstat(){$('mstat').textContent='Build 24 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
+// Some downloaded models contain empty (null) vertex attributes, which crash the renderer every frame. Strip them.
+function cleanModel(sc,file){let fixed=0;sc.traverse(o=>{if(!o.geometry)return;const G=o.geometry,A=G.attributes;
+  for(const k in A)if(!A[k]){delete A[k];fixed++}
+  const MA=G.morphAttributes;for(const k in MA){const f=(MA[k]||[]).filter(Boolean);if(f.length!==(MA[k]||[]).length)fixed++;if(f.length)MA[k]=f;else delete MA[k]}
+  if(o.isMesh&&(!A.position||!A.position.count)){o.visible=false;fixed++}});
+ if(fixed)console.warn('Model had',fixed,'empty attribute(s), cleaned:',file);return sc}
 function loadModel(file){
  if(MC[file])return MC[file];
  // Relative paths: loads directly from the repository next to index.html.
@@ -326,7 +332,7 @@ function loadModel(file){
  return MC[file]=new Promise(res=>{let k=0;
   const next=()=>{if(k>=nm.length){mBad.push(file);mstat();onMP(file,1);res(null);return}
    const url='./'+encodeURIComponent(nm[k++]);
-   try{L.load(url,g=>{mOk++;mstat();onMP(file,1);if(nm[k-1]!==file)console.info('Model loaded as',nm[k-1]);res(g.scene)},x=>{if(x&&x.lengthComputable&&x.total)onMP(file,Math.min(.99,x.loaded/x.total))},e=>{console.warn('Model failed to load:',url,e);next()})}catch(e){console.warn(e);next()}};
+   try{L.load(url,g=>{mOk++;mstat();onMP(file,1);if(nm[k-1]!==file)console.info('Model loaded as',nm[k-1]);res(cleanModel(g.scene,file))},x=>{if(x&&x.lengthComputable&&x.total)onMP(file,Math.min(.99,x.loaded/x.total))},e=>{console.warn('Model failed to load:',url,e);next()})}catch(e){console.warn(e);next()}};
   next()})}
 // fit a loaded model to the car: length along +x, nose forward, centred, resting on the ground
 function fit(src,C){
