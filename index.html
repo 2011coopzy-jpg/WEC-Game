@@ -164,7 +164,7 @@ const HYG=[
   ["83","AF Corse",0xf5c400,"2024_ferrari_499p.glb"],
   ["93","Peugeot",0x3a3f47,"2024_peugeot_9x8_hybrid_hypercar_lmh.glb"],
   ["94","Peugeot",0x3a3f47,"2024_peugeot_9x8_hybrid_hypercar_lmh.glb"]
-],GTG=[["10","Garage 59",0xff8000],["21","Vista AF Corse",0xc40000],["23","Heart of Racing",0x6f5c],["27","Heart of Racing",0x6f5c],["32","WRT",0x66b1],["33","TF Sport",0xffd100],["34","Racing Team Turkey",0xe30a17],["54","Vista AF Corse",0xc40000],["58","Garage 59",0xff8000],["61","Iron Lynx",0xa3a1],["69","WRT",0x66b1],["77","Proton",0xa3d8f],["78","Akkodis ASP",0x7b2ff7],["79","Iron Lynx",0xa3a1],["87","Akkodis ASP",0x7b2ff7],["88","Proton",0xa3d8f],["91","Manthey",0xe8e8e8],["92","The Bend Manthey",0x1a1a1a]];
+],GTG=[["10","Garage 59",0xff8000,"2020_mclaren_720s_gt3.glb"],["21","Vista AF Corse",0xc40000,"2025_ferrari_296_gt3_verstappen_racing.glb"],["23","Heart of Racing",0x6f5c,"2013_aston_martin_vantage_gt3.glb"],["27","Heart of Racing",0x6f5c,"2013_aston_martin_vantage_gt3.glb"],["32","WRT",0x66b1,"2026_bmw_m4_gt3_evo.glb"],["33","TF Sport",0xffd100,"corvette_c8r_gt3-tf_sport.glb"],["34","Racing Team Turkey",0xe30a17,"corvette_c8r_gt3-tf_sport.glb"],["54","Vista AF Corse",0xc40000,"2025_ferrari_296_gt3_verstappen_racing.glb"],["58","Garage 59",0xff8000,"2020_mclaren_720s_gt3.glb"],["61","Iron Lynx",0xa3a1,"2015_mercedes-amg_gt3_marin_kitagawa.glb"],["69","WRT",0x66b1,"2026_bmw_m4_gt3_evo.glb"],["77","Proton",0xa3d8f,"2024_ford_mustang_gt3.glb"],["78","Akkodis ASP",0x7b2ff7,"2018_lexus_rc_f_gt3.glb"],["79","Iron Lynx",0xa3a1,"mercedes_benz_amg_gt3_miku_custom.glb"],["87","Akkodis ASP",0x7b2ff7,"2018_lexus_rc_f_gt3.glb"],["88","Proton",0xa3d8f,"2024_ford_mustang_gt3.glb"],["91","Manthey",0xe8e8e8,"2024_porsche_992_gt3_r.glb"],["92","The Bend Manthey",0x1a1a1a,"porsche_992_gt3_r_roxy (1).glb"]];
 function mk(ci,num,name,ai,idx,off,skill,hue){
  const C=CLS[ci],h=TH[idx];
  return{C,ci,num,name,ai,skill,hue,x:TX[idx]-sin(h)*off,y:TY[idx]+cos(h)*off,th:h,u:0,v:0,r:0,steer:0,ax:0,ay:0,idx,lap:-1,prog:0,abs:true,absA:0,d:off,surf:1,
@@ -314,7 +314,7 @@ addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
 const MC={};let mOk=0,mBad=[];let onMP=()=>{};
-function mstat(){$('mstat').textContent='Build 22 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
+function mstat(){$('mstat').textContent='Build 23 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
 function loadModel(file){
  if(MC[file])return MC[file];
  // Relative paths: loads directly from the repository next to index.html.
