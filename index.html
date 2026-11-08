@@ -41,6 +41,16 @@ button,select{font:inherit;color:var(--fg);background:#1d2630;border:1px solid #
 #ldf::after{content:"";position:absolute;inset:0;width:40%;background:linear-gradient(90deg,transparent,rgba(255,255,255,.45),transparent);animation:ldsh 1.1s linear infinite}
 @keyframes ldsh{from{transform:translateX(-100%)}to{transform:translateX(250%)}}
 #ldt{color:var(--fg);font-size:14px}
+#tbtn{position:fixed;top:calc(8px + env(safe-area-inset-top,0px));right:8px;z-index:15;padding:6px 12px;font-size:12px;font-weight:700;opacity:.9}
+#tuner{position:fixed;top:calc(46px + env(safe-area-inset-top,0px));right:8px;z-index:16;width:290px;max-width:calc(100vw - 16px);max-height:calc(100vh - 60px);max-height:calc(100dvh - 60px);overflow-y:auto;background:rgba(14,18,24,.94);border:1px solid #33414f;border-radius:10px;padding:10px 12px;font-size:12px;display:none}
+#tuner h4{margin:12px 0 4px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut)}
+#tuner .sl{display:grid;grid-template-columns:1fr 54px;align-items:center;gap:0 8px;margin:3px 0}
+#tuner .sl label{grid-column:1/3;color:var(--fg)}
+#tuner .sl input[type=range]{width:100%;margin:0}
+#tuner .sl output{text-align:right;color:#ffb84d;font-variant-numeric:tabular-nums}
+#tuner select{width:100%;padding:6px 8px;font-size:12px}
+#tuner .bt{display:flex;gap:6px;margin-top:10px}#tuner .bt button{flex:1;padding:7px;font-size:12px}
+#tuner textarea{width:100%;box-sizing:border-box;height:90px;margin-top:6px;background:#0b0e12;color:var(--fg);border:1px solid #33414f;border-radius:6px;font:11px/1.4 ui-monospace,monospace;display:none}
 table{width:100%;border-collapse:collapse;font-size:13px;margin-top:10px}td{padding:5px 6px;border-bottom:1px solid #26303c}
 </style></head><body>
 <canvas id="c"></canvas>
@@ -142,7 +152,7 @@ function mk(ci,num,name,ai,idx,off,skill,hue){
  return{C,ci,num,name,ai,skill,hue,x:TX[idx]-sin(h)*off,y:TY[idx]+cos(h)*off,th:h,u:0,v:0,r:0,steer:0,ax:0,ay:0,idx,lap:-1,prog:0,abs:true,absA:0,d:off,surf:1,
  lapStart:0,last:0,best:0,fin:false,ft:0,fuel:C.fuel,wear:0,tt:75,om:[0,0,0,0],al:[0,0,0,0],ka:[0,0,0,0],sh:0,dr:0,tc:true,ers:.6,gi:0,rpm:3500,bl:false,base:off*0.4,lane:off,thr:0,brk:0};}
 function startRace(){
- cars.forEach(o=>o.g&&S3.remove(o.g));cars=[];camAng=camZ=undefined;T=0;cdT=0;LAPS=+$('laps').value;state='count';
+ cars.forEach(o=>o.g&&S3.remove(o.g));cars=[];Object.keys(REG).forEach(k=>REG[k]={mats:[],pivs:[]});camAng=camZ=undefined;T=0;cdT=0;LAPS=+$('laps').value;state='count';
  for(let k=0;k<35;k++){const c=k<17?0:1,ck=c?k-17:k,isP=c===selC&&ck===selCar[c],idx=(N-6-(k>>1)*3+N)%N,off=k%2?3.5:-3.5;
   const e=(c?GTG:HYG)[ck],o=mk(c,e[0],(isP?'You · ':'')+'#'+e[0]+' '+e[1],!isP,idx,off,clamp(0.975-ck*0.0007-Math.random()*0.004,0.8,1),e[2]);
   o.mf=e[3];cars.push(o);if(isP)P=o;}
@@ -176,7 +186,7 @@ function phys(o,h,thr,brk,st){
  if(o.tc){const km=Math.max(o.ka[2],o.ka[3],awd?Math.max(o.ka[0],o.ka[1]):0);Tt*=clamp(1-(km-.13)*7,.15,1)}
  if(thr<.05&&sp>5)Tt=-.05*m*G*R;
  const Tbt=brk*3.2*m*G*R,Tb=[.29,.29,.21,.21];
- let Fx=-(q*C.cd*(1-.4*dr)+.015*m*G+m*G*slopeAt(o)+(o.surf<.95?m*(1-o.surf)*(3+.12*sp):0))*(u>0?1:0),Fy=0,Mz=0;
+ let Fx=-(q*C.cd*(1-.4*dr)+.015*m*G+m*G*slopeAt(o)+(o.surf<.95?m*(1-o.surf)*(14+.55*sp):0))*(u>0?1:0),Fy=0,Mz=0;
  for(let i=0;i<4;i++){
   const fr=i<2,ax=fr?0:1,xi=fr?C.a:-C.b,yi=(i&1?1:-1)*tw/2,fz=Math.max(150,Fa[ax]/2+(i&1?-1:1)*dFz*shr[ax]);
   const vx=u-o.r*yi,vy=o.v+o.r*xi,vxw=fr?vx*cd+vy*sd:vx,vyw=fr?-vx*sd+vy*cd:vy,den=Math.max(Math.abs(vxw),4);
@@ -265,14 +275,14 @@ function coll(){
 
 // ---------- input ----------
 const keys={},inp={thr:0,brk:0,st:0};
-addEventListener('keydown',e=>{const k=e.key.toLowerCase();keys[k]=1;if(k.startsWith('arrow')||k===' ')e.preventDefault();
+addEventListener('keydown',e=>{if(e.target&&e.target.closest&&e.target.closest('#tuner'))return;const k=e.key.toLowerCase();keys[k]=1;if(k.startsWith('arrow')||k===' ')e.preventDefault();
  if(k==='r'&&P&&state!=='menu'){P.x=TX[P.idx];P.y=TY[P.idx];P.th=TH[P.idx];P.u=P.v=P.r=0;P.steer=0;P.om=[0,0,0,0];P.al=[0,0,0,0]}
  if(k==='m')muted=!muted;});
 addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
 
 // ---------- audio (simple engine tone) ----------
 const MC={};let mOk=0,mBad=[];let onMP=()=>{};
-function mstat(){$('mstat').textContent='Build 15 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
+function mstat(){$('mstat').textContent='Build 16 · Models loaded: '+mOk+(mBad.length?'. Failed: '+mBad.join(', '):'')}
 function loadModel(file){
  if(MC[file])return MC[file];
  // Relative paths: loads directly from the repository next to index.html.
@@ -288,13 +298,13 @@ function loadModel(file){
   next()})}
 // fit a loaded model to the car: length along +x, nose forward, centred, resting on the ground
 function fit(src,C){
- const g=new THREE.Group(),m=src.clone(true),b=new THREE.Box3(),v=new THREE.Vector3(),sz=new THREE.Vector3(),c=new THREE.Vector3();g.add(m);
+ const g=new THREE.Group(),piv=new THREE.Group(),m=src.clone(true),b=new THREE.Box3(),v=new THREE.Vector3(),sz=new THREE.Vector3(),c=new THREE.Vector3();g.add(piv);piv.add(m);g.userData.piv=piv;
  b.setFromObject(m);b.getSize(sz);if(sz.z>sz.x){m.rotation.y=PI/2;m.updateMatrixWorld(true);b.setFromObject(m);b.getSize(sz)}
  b.getCenter(c);let hf=-1e9,hr=-1e9;
  m.traverse(o=>{if(o.isMesh&&o.geometry.attributes.position){const p=o.geometry.attributes.position;for(let i=0;i<p.count;i+=3){v.fromBufferAttribute(p,i).applyMatrix4(o.matrixWorld);const t=(v.x-c.x)/sz.x;if(t>.3&&v.y>hf)hf=v.y;if(t<-.3&&v.y>hr)hr=v.y}}});
  if(hf>hr+.02){m.rotation.y+=PI;m.updateMatrixWorld(true);b.setFromObject(m);b.getCenter(c)}
  m.position.set(-c.x,-b.min.y,-c.z);g.scale.setScalar(C.len/sz.x);return g}
-function useModel(o){if(!o.mf)return;loadModel(o.mf).then(src=>{if(!src||!o.g)return;try{const m=fit(src,o.C);try{fixMats(m)}catch(e){console.error('fixMats failed',o.mf,e)}o.g.children.slice().forEach(k=>o.g.remove(k));o.g.add(m)}catch(e){console.warn('fit failed',o.mf,e)}})}
+function useModel(o){if(!o.mf)return;loadModel(o.mf).then(src=>{if(!src||!o.g)return;try{const m=fit(src,o.C);try{fixMats(m,o.mf)}catch(e){console.error('fixMats failed',o.mf,e)}o.g.children.slice().forEach(k=>o.g.remove(k));o.g.add(m);treg(o.mf).pivs.push(m.userData.piv);applyTune(o.mf)}catch(e){console.warn('fit failed',o.mf,e)}})}
 let ac,osc,gn;
 function audio(){try{ac=new(window.AudioContext||window.webkitAudioContext)();osc=ac.createOscillator();osc.type='sawtooth';
  const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=1100;gn=ac.createGain();gn.gain.value=0;osc.connect(f);f.connect(gn);gn.connect(ac.destination);osc.start()}catch(e){ac=0}}
@@ -391,15 +401,26 @@ function hud(){
 const R3=new THREE.WebGLRenderer({antialias:true,logarithmicDepthBuffer:true});R3.domElement.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:0';document.body.insertBefore(R3.domElement,cv);
 const S3=new THREE.Scene(),C3=new THREE.PerspectiveCamera(68,1,1,4000);S3.background=new THREE.Color(0x8fb8e8);S3.fog=new THREE.Fog(0x8fb8e8,250,1800);
 function rs3(){R3.setPixelRatio(dpr);R3.setSize(W,H,false);C3.aspect=W/H;C3.updateProjectionMatrix()}addEventListener('resize',rs3);rs3();
-S3.add(new THREE.HemisphereLight(0xffffff,0x3a5a35,.95));
+const TUNE={},REG={},TUNI={};let TSKY=.95,TSUN=0,CAMOFF=0,CAMDIST=1,tPause=false;
+try{const sv=JSON.parse(localStorage.getItem('tuneV1')||'null');if(sv){Object.assign(TUNE,sv.m||{});if(sv.sky!=null)TSKY=sv.sky;if(sv.sun!=null)TSUN=sv.sun}}catch(e){}
+const HEMI=new THREE.HemisphereLight(0xffffff,0x3a5a35,TSKY),SUN=new THREE.DirectionalLight(0xfff1d6,TSUN);SUN.position.set(30,38,15);S3.add(HEMI);S3.add(SUN);S3.add(SUN.target);
 {try{const pm=new THREE.PMREMGenerator(R3),es=new THREE.Scene(),gg=new THREE.SphereGeometry(50,32,16),ps=gg.attributes.position,cc=[],a=new THREE.Color(0x8fb8e8),b=new THREE.Color(0xffffff),c=new THREE.Color(0x5a6b55),t=new THREE.Color();
  for(let i=0;i<ps.count;i++){const y=ps.getY(i)/50;t.copy(y>0?b.clone().lerp(a,Math.pow(y,.6)):b.clone().lerp(c,Math.min(1,-y*2)));cc.push(t.r,t.g,t.b)}
  gg.setAttribute('color',new THREE.Float32BufferAttribute(cc,3));es.add(new THREE.Mesh(gg,new THREE.MeshBasicMaterial({vertexColors:true,side:THREE.BackSide})));
  const sm=new THREE.Mesh(new THREE.SphereGeometry(6,12,8),new THREE.MeshBasicMaterial({color:0xfff4d8}));sm.position.set(30,38,15);es.add(sm);
  S3.environment=pm.fromScene(es,.02).texture;pm.dispose()}catch(e){console.warn('env map failed',e)}}
-const MSELF=.12; // self-lit share of each texture (0-1): raise if models still look dark
-const MBRIGHT=1.1; // raise/lower to make 3D models brighter/darker
-function fixMats(m){const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b;
+// ---------- per-model tuning (live sliders in the Tuner panel) ----------
+const TDEF={yaw:0,pitch:0,roll:0,scale:100,raise:0,bright:1.1,glow:.12,env:.8,metal:.12,rough:1,sat:1,hue:0,r:1,g:1,b:1};
+function tk(f){return TUNE[f]||(TUNE[f]=Object.assign({},TDEF))}
+function treg(f){return REG[f]||(REG[f]={mats:[],pivs:[]})}
+function tuni(f){return TUNI[f]||(TUNI[f]={uSat:{value:1},uHue:{value:0}})}
+function tsave(){try{localStorage.setItem('tuneV1',JSON.stringify({m:TUNE,sky:TSKY,sun:TSUN}))}catch(e){}}
+function applyTune(f){const t=tk(f),u=tuni(f);u.uSat.value=t.sat;u.uHue.value=t.hue*PI/180;
+ for(const e of treg(f).mats){const n=e.n;
+  n.color.copy(e.col);if(!n.transparent)n.color.multiplyScalar(t.bright);n.color.r*=t.r;n.color.g*=t.g;n.color.b*=t.b;
+  if(e.glow)n.emissive.setScalar(t.glow);n.envMapIntensity=t.env;n.metalness=Math.min(e.met,t.metal);n.roughness=clamp(e.rough*t.rough,.05,1)}
+ for(const pv of treg(f).pivs){pv.rotation.order='YZX';pv.rotation.set(t.roll*PI/180,t.yaw*PI/180,t.pitch*PI/180);pv.scale.setScalar(t.scale/100);pv.position.y=t.raise/pv.parent.scale.x}}
+function fixMats(m,f){const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b,R=treg(f||'?'),U=tuni(f||'?');
  m.traverse(o=>{if(!o.isMesh)return;const cv=x=>{if(!x)return x;
   if(x.map&&x.map.encoding!==THREE.LinearEncoding){x.map.encoding=THREE.LinearEncoding;x.map.needsUpdate=true}
   if(x.emissiveMap&&x.emissiveMap.encoding!==THREE.LinearEncoding){x.emissiveMap.encoding=THREE.LinearEncoding;x.emissiveMap.needsUpdate=true}
@@ -407,14 +428,18 @@ function fixMats(m){const lum=c=>.2126*c.r+.7152*c.g+.0722*c.b;
   const n=new THREE.MeshStandardMaterial({color:x.color?x.color.clone().convertLinearToSRGB():new THREE.Color(0xffffff),map:x.map||null,normalMap:x.normalMap||null,vertexColors:!!x.vertexColors,
    transparent:!!x.transparent,opacity:x.opacity===undefined?1:x.opacity,alphaTest:x.alphaTest||0,side:THREE.DoubleSide,
    metalness:Math.min(met,.12),roughness:Math.max(.3,Math.min(rough,.85)),envMapIntensity:.8});
-  if(n.map&&!n.transparent)n.color.multiplyScalar(MBRIGHT);
   if(x.normalScale)n.normalScale.copy(x.normalScale);
   if(n.transparent)n.depthWrite=false;
-  if(n.map&&!x.emissiveMap&&!n.transparent){n.emissiveMap=n.map;n.emissive=new THREE.Color(MSELF,MSELF,MSELF)}else
+  let glow=false;
+  if(n.map&&!x.emissiveMap&&!n.transparent){n.emissiveMap=n.map;n.emissive=new THREE.Color(.12,.12,.12);glow=true}else
   if(x.emissiveMap){n.emissiveMap=x.emissiveMap;n.emissive=new THREE.Color(1,1,1)}else if(x.emissive&&lum(x.emissive)>.02)n.emissive=x.emissive.clone().convertLinearToSRGB();
   if(!n.map&&!n.vertexColors&&lum(n.color)<.02)n.color.setHex(0x2b2f35);
-  n.name=x.name;return n};
-  o.material=Array.isArray(o.material)?o.material.map(cv):cv(o.material);o.castShadow=o.receiveShadow=false})}
+  n.onBeforeCompile=sh=>{sh.uniforms.uSat=U.uSat;sh.uniforms.uHue=U.uHue;
+   sh.fragmentShader='uniform float uSat;uniform float uHue;\n'+sh.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\n{float gl=dot(diffuseColor.rgb,vec3(.299,.587,.114));diffuseColor.rgb=mix(vec3(gl),diffuseColor.rgb,uSat);vec3 k=vec3(.57735);float c=cos(uHue),s=sin(uHue);diffuseColor.rgb=diffuseColor.rgb*c+cross(k,diffuseColor.rgb)*s+k*dot(k,diffuseColor.rgb)*(1.-c);diffuseColor.rgb=max(diffuseColor.rgb,vec3(0.));}')};
+  n.customProgramCacheKey=()=>'tuneSatHue';
+  n.name=x.name;R.mats.push({n,col:n.color.clone(),glow,met:Math.min(met,1),rough:n.roughness});return n};
+  o.material=Array.isArray(o.material)?o.material.map(cv):cv(o.material);o.castShadow=o.receiveShadow=false});
+ if(f)applyTune(f)}
 let camAng,camZ,HT;
 function offT(o){return clamp((Math.abs(o.d)-(TW/2+1))/2,0,1)}
 function gY(o){const t=offT(o);return t>0?zAt(o)*(1-t)+(hAt(o.x,o.y)+.05)*t:zAt(o)}
@@ -479,11 +504,41 @@ function car3d(o){const C=o.C,gp=new THREE.Group(),M=c=>new THREE.MeshLambertMat
 function render3d(){const p=P;
  for(const o of cars){if(!o.g)car3d(o);o.g.rotation.order="YZX";o.g.position.set(o.x,gY(o)+.02,o.y);{const t=offT(o);let pt=Math.atan(TS[o.idx]),rl=0;if(t>0){const f=2.4,c=cos(o.th),s=sin(o.th),hf=hAt(o.x+c*f,o.y+s*f),hb=hAt(o.x-c*f,o.y-s*f),hr=hAt(o.x-s*.9,o.y+c*.9),hl=hAt(o.x+s*.9,o.y-c*.9);pt=pt*(1-t)+Math.atan((hf-hb)/(2*f))*t;rl=Math.atan((hl-hr)/1.8)*t}o.g.rotation.set(rl,-o.th,pt)}o.bm.material.color.setHex(o.bl?0xff2020:0x501010)}
  if(camAng===undefined)camAng=p.th;let da=p.th-camAng;while(da>PI)da-=2*PI;while(da<-PI)da+=2*PI;camAng+=da*.12;
- const dist=8+p.u*.05,hh=2.5+p.u*.01,fx=cos(camAng),fz=sin(camAng);
- const pz=gY(p);camZ=camZ===undefined?pz:camZ+(pz-camZ)*.12;C3.position.set(p.x-fx*dist,hh+camZ,p.y-fz*dist);C3.lookAt(p.x+fx*10,1.1+camZ,p.y+fz*10);C3.fov=68+p.u*.12;C3.updateProjectionMatrix()}
+ const dist=(8+p.u*.05)*CAMDIST,hh=2.5+p.u*.01,fx=cos(camAng+CAMOFF),fz=sin(camAng+CAMOFF);
+ const pz=gY(p);camZ=camZ===undefined?pz:camZ+(pz-camZ)*.12;C3.position.set(p.x-fx*dist,hh+camZ,p.y-fz*dist);if(CAMOFF)C3.lookAt(p.x,1+camZ,p.y);else C3.lookAt(p.x+fx*10,1.1+camZ,p.y+fz*10);C3.fov=68+p.u*.12;C3.updateProjectionMatrix()}
 function frame(t){requestAnimationFrame(frame);const dt=Math.min((t-lastT)/1000||0,.05);lastT=t;
- if(state!=='menu'){acc+=dt;while(acc>=H0){step(H0);acc-=H0}}else if(gn)gn.gain.value=0;draw()}
+ if(state!=='menu'&&!tPause){acc+=dt;while(acc>=H0){step(H0);acc-=H0}}else if(gn)gn.gain.value=0;draw()}
 requestAnimationFrame(frame);
+
+// ---------- Tuner panel: orientation + colour/lighting sliders ----------
+{const tb=document.createElement('button'),tn=document.createElement('div');tb.id='tbtn';tb.textContent='Tuner';tn.id='tuner';document.body.append(tb,tn);
+ const files={};for(const[L,n]of[[HYG,'Hypercar'],[GTG,'LMGT3']])for(const e of L)if(e[3])(files[e[3]]=files[e[3]]||{n:[],t:e[1],c:n}).n.push('#'+e[0]);
+ const keys=Object.keys(files);let cur=keys.find(f=>/af_cor/i.test(f))||keys[0];
+ const OS=[['yaw','Yaw: turn the model left/right (deg)',-180,180,1,'°'],['pitch','Pitch: nose up / down (deg)',-180,180,1,'°'],['roll','Roll: tilt sideways (deg)',-180,180,1,'°'],['scale','Size (%)',50,150,1,'%'],['raise','Raise / lower (m)',-1.5,1.5,.01,'m']];
+ const CS=[['bright','Brightness',.2,3,.05,''],['glow','Glow (self-light)',0,1,.01,''],['env','Reflection strength',0,3,.05,''],['metal','Metalness',0,1,.01,''],['rough','Roughness (x)',.2,2.5,.05,''],['sat','Colour saturation',0,2.5,.05,''],['hue','Hue shift (deg)',-180,180,1,'°'],['r','Red',0,2,.01,''],['g','Green',0,2,.01,''],['b','Blue',0,2,.01,'']];
+ const sl=(id,lab,mn,mx,st,u)=>`<div class="sl"><label for="t_${id}">${lab}</label><input type="range" id="t_${id}" min="${mn}" max="${mx}" step="${st}"><output id="o_${id}"></output></div>`;
+ tn.innerHTML=`<b>Model tuner</b><h4>Model</h4><select id="t_model">${keys.map(f=>`<option value="${f}">${files[f].n.join(' ')} · ${files[f].t}</option>`).join('')}</select>
+ <small>Pick the car in the menu and start the race so you drive it, then drag the sliders. They change every car using this model.</small>
+ <h4>Orientation (this model)</h4>${OS.map(a=>sl(...a.slice(0,5))).join('')}
+ <h4>Colour &amp; lighting (this model)</h4>${CS.map(a=>sl(...a.slice(0,5))).join('')}
+ <h4>Scene lighting (all cars and track)</h4>${sl('sky','Sky light',0,3,.05)}${sl('sun','Sun light',0,3,.05)}
+ <h4>View</h4>${sl('cam','Camera orbit (deg)',-180,180,1)}${sl('cd','Camera distance (x)',.4,3,.05)}<label><input type="checkbox" id="t_pause"> Pause the race</label>
+ <div class="bt"><button id="t_reset">Reset this model</button><button id="t_copy">Show / copy values</button></div><textarea id="t_txt" readonly></textarea>`;
+ const $t=id=>document.getElementById(id),fmtv=(v,u,st)=>(st<1?(+v).toFixed(2):Math.round(v))+u;
+ function sync(){const t=tk(cur);for(const a of[...OS,...CS]){$t('t_'+a[0]).value=t[a[0]];$t('o_'+a[0]).textContent=fmtv(t[a[0]],a[5],a[4])}
+  $t('t_sky').value=TSKY;$t('o_sky').textContent=TSKY.toFixed(2);$t('t_sun').value=TSUN;$t('o_sun').textContent=TSUN.toFixed(2);
+  $t('t_cam').value=CAMOFF*180/PI;$t('o_cam').textContent=Math.round(CAMOFF*180/PI)+'°';$t('t_cd').value=CAMDIST;$t('o_cd').textContent=CAMDIST.toFixed(2)}
+ for(const a of[...OS,...CS])$t('t_'+a[0]).oninput=e=>{tk(cur)[a[0]]=+e.target.value;$t('o_'+a[0]).textContent=fmtv(e.target.value,a[5],a[4]);applyTune(cur);tsave()};
+ $t('t_sky').oninput=e=>{TSKY=+e.target.value;HEMI.intensity=TSKY;$t('o_sky').textContent=TSKY.toFixed(2);tsave()};
+ $t('t_sun').oninput=e=>{TSUN=+e.target.value;SUN.intensity=TSUN;$t('o_sun').textContent=TSUN.toFixed(2);tsave()};
+ $t('t_cam').oninput=e=>{CAMOFF=e.target.value*PI/180;$t('o_cam').textContent=Math.round(e.target.value)+'°'};
+ $t('t_cd').oninput=e=>{CAMDIST=+e.target.value;$t('o_cd').textContent=CAMDIST.toFixed(2)};
+ $t('t_pause').onchange=e=>{tPause=e.target.checked};
+ $t('t_model').onchange=e=>{cur=e.target.value;sync();$t('t_txt').style.display='none'};
+ $t('t_reset').onclick=()=>{TUNE[cur]=Object.assign({},TDEF);applyTune(cur);sync();tsave()};
+ $t('t_copy').onclick=()=>{const t=tk(cur),x=$t('t_txt');x.value=files[cur].n.join(' ')+' '+files[cur].t+' ('+cur+')\n'+Object.keys(TDEF).map(k=>k+': '+t[k]).join(', ')+'\nsky: '+TSKY+', sun: '+TSUN;x.style.display='block';x.select();try{navigator.clipboard.writeText(x.value)}catch(e){}};
+ $t('t_model').value=cur;tb.onclick=()=>{tn.style.display=tn.style.display==='block'?'none':'block';if(tn.style.display==='block')sync()};
+ for(const f of keys)if(TUNE[f])applyTune(f);HEMI.intensity=TSKY;SUN.intensity=TSUN}
 
 // ---------- loading screen: preload every car model, then reveal the menu ----------
 {const files=[...new Set([...HYG,...GTG].map(e=>e[3]).filter(Boolean))],fr={};files.forEach(f=>fr[f]=0);
