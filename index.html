@@ -17,6 +17,14 @@ button,select{font:inherit;color:var(--fg);background:#1d2630;border:1px solid #
 .row button{flex:1;font-weight:700}
 .row button.on[data-c="0"]{background:var(--red);border-color:var(--red)}
 .row button.on[data-c="1"]{background:var(--org);border-color:var(--org);color:#111}
+#tbtn{position:fixed;right:10px;bottom:10px;z-index:40;padding:8px 12px;font-size:12px;opacity:.85}
+#tuner{position:fixed;right:8px;top:8px;width:290px;max-height:calc(100vh - 16px);overflow:auto;background:rgba(12,16,22,.94);border:1px solid #2a3442;border-radius:10px;padding:10px;z-index:60;font-size:12px}
+#tuner .th{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}#tuner .th button{padding:2px 9px}
+#tuner .tsel{display:grid;gap:4px;color:var(--mut);margin-bottom:6px}#tuner select{width:100%}
+#tuner h4{margin:10px 0 4px;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+#tuner .sr{display:grid;grid-template-columns:1fr auto;gap:0 8px;margin:3px 0}#tuner .sr span{color:var(--mut)}#tuner .sr b{font-weight:600}#tuner .sr input{grid-column:1/3;width:100%;margin:0}
+#tuner .tbtns{display:flex;gap:6px;margin:10px 0 6px;flex-wrap:wrap}#tuner .tbtns button{padding:6px 10px;font-size:12px}
+#tuner textarea{width:100%;background:#0b0e12;color:#cfd8e3;border:1px solid #2a3442;border-radius:6px;font:11px ui-monospace,monospace;resize:vertical;box-sizing:border-box}
 #pcard{max-width:340px;text-align:center}
 .pbtns{display:grid;gap:8px;margin:14px 0 6px}
 .pbtns button{padding:12px;font-weight:700}
@@ -78,6 +86,11 @@ LD.set(.05);
 <div id="clist"></div>
 <div class="mbar"><button id="back">Back</button><label>Race length <select id="laps"><option value="2">2 laps</option><option value="3" selected>3 laps</option><option value="5">5 laps</option><option value="10">10 laps</option></select></label><button id="go">Start race</button></div>
 </div></div>
+<button id="tbtn" style="display:none">Tuner (T)</button>
+<div id="tuner" style="display:none"><div class="th"><b>Tuner</b><button id="tx">×</button></div>
+<label class="tsel">Model <select id="tm"></select></label><div id="tsl"></div>
+<div class="tbtns"><button id="tfreeze">Freeze race</button><button id="treset">Reset</button><button id="tcopy">Copy values</button></div>
+<textarea id="tout" readonly rows="7"></textarea></div>
 <div class="ov" id="pause" style="display:none"><div class="card" id="pcard"><h1>Paused</h1><div class="pbtns"><button id="presume">Resume</button><button id="prestart">Restart race</button><button id="pquit">Quit to menu</button></div><p>Press Esc or P to resume.</p></div></div>
 <div class="ov" id="res" style="display:none"><div class="card"><h1>Chequered flag</h1><div id="rtabs"></div><div id="tbl"></div><button id="again">Race again</button></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -342,10 +355,14 @@ function coll(){
 
 // ---------- input ----------
 const keys={},inp={thr:0,brk:0,st:0};
-addEventListener('keydown',e=>{if(e.target&&e.target.closest&&e.target.closest('#tuner'))return;const k=e.key.toLowerCase();if((k==='escape'||k==='p')&&!e.repeat){togglePause();return}keys[k]=1;if(k.startsWith('arrow')||k===' ')e.preventDefault();
+addEventListener('keydown',e=>{if(e.target&&e.target.closest&&e.target.closest('#tuner'))return;const k=e.key.toLowerCase();if((k==='escape'||k==='p')&&!e.repeat){togglePause();return}if(e.metaKey||e.ctrlKey||e.altKey){clearKeys();return}keys[k]=1;{const m=KMAP[e.code];if(m)keys[m]=1}if(k.startsWith('arrow')||k===' ')e.preventDefault();
  if(k==='r'&&P&&state!=='menu'){P.x=TX[P.idx];P.y=TY[P.idx];P.th=TH[P.idx];P.u=P.v=P.r=0;P.steer=0;P.om=[0,0,0,0];P.al=[0,0,0,0]}
  if(k==='m')muted=!muted;});
-addEventListener('keyup',e=>keys[e.key.toLowerCase()]=0);
+const KMAP={KeyW:'w',KeyA:'a',KeyS:'s',KeyD:'d',ArrowUp:'arrowup',ArrowDown:'arrowdown',ArrowLeft:'arrowleft',ArrowRight:'arrowright',Space:' ',KeyR:'r',KeyM:'m'};
+function clearKeys(){for(const k in keys)keys[k]=0;inp.thr=inp.brk=inp.st=0}
+addEventListener('keyup',e=>{keys[e.key.toLowerCase()]=0;const m=KMAP[e.code];if(m)keys[m]=0;if(e.key==='Meta'||e.key==='Alt'||e.key==='Control'||e.key==='OS')clearKeys()});
+addEventListener('blur',clearKeys);addEventListener('focus',clearKeys);
+try{document.addEventListener('visibilitychange',clearKeys)}catch(e){}addEventListener('contextmenu',clearKeys);
 
 // ---------- audio (simple engine tone) ----------
 const MC={};let mOk=0,mBad=[];let onMP=()=>{};
@@ -392,7 +409,7 @@ function step(h){
   if(state==='count')brk=1;
   else if(o.ai){if(!o.ct||stepN%8===0){const c=aiCtl(o,h*8),f=o.ct||c;o.ct=[f[0]+(c[0]-f[0])*.3,f[1]+(c[1]-f[1])*.3,c[2]]}[thr,brk,st]=o.ct}
   else{const k=keys,tt=k.w||k.arrowup?1:0,bb=k.s||k.arrowdown?1:0,ss=(k.d||k.arrowright?1:0)-(k.a||k.arrowleft?1:0),rt=ss?3:5;
-   inp.thr+=clamp(tt-inp.thr,-6*h,3.5*h);inp.brk+=clamp(bb-inp.brk,-8*h,5*h);inp.st+=clamp(ss-inp.st,-rt*h,rt*h);thr=inp.thr;brk=inp.brk;st=inp.st;let gp=0;if(gpOk)try{gp=navigator.getGamepads()[0]}catch(e){gpOk=false}if(gp){const dz=x=>Math.abs(x)<.06?0:x,rt=gp.buttons[7]?gp.buttons[7].value:0,lt=gp.buttons[6]?gp.buttons[6].value:0;if(rt>.02||lt>.02){thr=rt;brk=lt}if(dz(gp.axes[0]))st=dz(gp.axes[0])}o.tc=tcOn}
+   inp.thr+=clamp(tt-inp.thr,-6*h,3.5*h);inp.brk+=clamp(bb-inp.brk,-8*h,5*h);inp.st+=clamp(ss-inp.st,-rt*h,rt*h);thr=inp.thr;brk=inp.brk;st=inp.st;let gp=0;if(gpOk)try{gp=navigator.getGamepads()[0]}catch(e){gpOk=false}if(gp&&gp.connected&&gp.mapping==='standard'){const dz=x=>Math.abs(x)<.18?0:x,rt=gp.buttons[7]?gp.buttons[7].value:0,lt=gp.buttons[6]?gp.buttons[6].value:0;if(rt>.1||lt>.1){thr=rt;brk=lt}if(dz(gp.axes[0]))st=dz(gp.axes[0])}o.tc=tcOn}
   phys(o,h,thr,brk,st);track(o)}
  coll();}
 // time the car B was at track position p (interpolated from its 16 m split times)
@@ -500,7 +517,7 @@ function hud(){
 const R3=new THREE.WebGLRenderer({antialias:false,powerPreference:'high-performance'});R3.domElement.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:0';document.body.insertBefore(R3.domElement,cv);
 const S3=new THREE.Scene(),C3=new THREE.PerspectiveCamera(68,1,.8,1000);S3.background=new THREE.Color(0x8fb8e8);S3.fog=new THREE.Fog(0x8fb8e8,150,650);
 let RS=1;function rs3(){R3.setPixelRatio(Math.min(dpr,1.25)*RS);R3.setSize(W,H,false);C3.aspect=W/H;C3.updateProjectionMatrix()}addEventListener('resize',rs3);rs3();
-const TUNE={},REG={},TUNI={};let TSKY=.95,TSUN=0,CAMOFF=0,CAMDIST=1,tPause=false;
+const TUNE={},REG={},TUNI={};let TSKY=.95,TSUN=0,CAMOFF=0,CAMDIST=1,CAMH=0,CAMLH=0,CAMFOV=0,tPause=false;
 const HEMI=new THREE.HemisphereLight(0xffffff,0x3a5a35,TSKY),SUN=new THREE.DirectionalLight(0xfff1d6,TSUN);SUN.position.set(30,38,15);S3.add(HEMI);S3.add(SUN);S3.add(SUN.target);
 {try{const pm=new THREE.PMREMGenerator(R3),es=new THREE.Scene(),gg=new THREE.SphereGeometry(50,32,16),ps=gg.attributes.position,cc=[],a=new THREE.Color(0x8fb8e8),b=new THREE.Color(0xffffff),c=new THREE.Color(0x5a6b55),t=new THREE.Color();
  for(let i=0;i<ps.count;i++){const y=ps.getY(i)/50;t.copy(y>0?b.clone().lerp(a,Math.pow(y,.6)):b.clone().lerp(c,Math.min(1,-y*2)));cc.push(t.r,t.g,t.b)}
@@ -612,11 +629,25 @@ function scenery(){
   D.rotation.set(0,rnd()*6,0);D.scale.set(k,k*.75,k);D.position.set(x,hAt(x,z)+.6*k,z);D.updateMatrix();bu.setMatrixAt(m,D.matrix);bu.setColorAt(m,new THREE.Color().setHSL(.22+rnd()*.12,.5,.25+rnd()*.12));m++}
  bu.count=m;chunkify(bu);
  // Armco where the wall is near the track, tyre walls where there is a run-off area in front of it
- {const am=new THREE.InstancedMesh(new THREE.BoxGeometry(7.85,.55,.14),new THREE.MeshLambertMaterial({color:0xc8ced6}),N+8),tw=new THREE.InstancedMesh(new THREE.BoxGeometry(3.85,1.3,1),M(0xffffff),2*N);let na=0,ntw=0;const tc=[0xf2f2f2,0xd1202e,0x1f4fa8];
-  for(const sd of[0,1]){const sg=sd?1:-1;for(let i=0;i<N;i++){const wd=WD[sd][i],near=wd-TW/2<=15;if(near&&i%2)continue;const[x,z,h]=at(i,sg*wd);
-   const vs=.96+rnd()*.08;D.rotation.set(0,-h,0);D.scale.set(1,vs,1);D.position.set(x,hAt(x,z)+(near?.55:.65)*vs,z);D.updateMatrix();
-   if(near&&na<N+8)am.setMatrixAt(na++,D.matrix);else if(!near&&ntw<2*N){tw.setMatrixAt(ntw,D.matrix);tw.setColorAt(ntw++,new THREE.Color(tc[(i>>1)%3]))}}}
-  am.count=na;tw.count=ntw;chunkify(am,200);chunkify(tw,200)}}
+ {// barriers are continuous strips that follow the ground, so there are no gaps or stepped pieces
+  const mkTex=(draw,w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;const q=c.getContext('2d');draw(q,w,h);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;try{t.anisotropy=Math.min(8,R3.capabilities.getMaxAnisotropy())}catch(e){}return t};
+  const armT=mkTex((q,w,h)=>{q.fillStyle='#b9c0c8';q.fillRect(0,0,w,h);for(let k=0;k<2;k++){const y=h*(.12+k*.44);q.fillStyle='#8c949d';q.fillRect(0,y,w,h*.1);q.fillStyle='#dfe4ea';q.fillRect(0,y+h*.1,w,h*.14);q.fillStyle='#8c949d';q.fillRect(0,y+h*.24,w,h*.06)}
+    q.fillStyle='#6d747c';for(let x=0;x<w;x+=w/2)q.fillRect(x,0,5,h)},128,64);
+  const tyreT=mkTex((q,w,h)=>{const cols=['#f2f2f2','#d1202e','#1f4fa8'],bw=w/3;for(let b=0;b<3;b++){const x0=b*bw;q.fillStyle='#16181b';q.fillRect(x0,0,bw,h);
+    for(let r=0;r<3;r++)for(let c=0;c<5;c++){const cx=x0+bw*(c+.5+(r%2?.5:0))/5.5,cy=h*(r+.5)/3;q.fillStyle='#2a2d31';q.beginPath();q.ellipse(cx,cy,bw/12,h/7.5,0,0,7);q.fill();q.fillStyle='#0c0d0f';q.beginPath();q.ellipse(cx,cy,bw/26,h/16,0,0,7);q.fill()}
+    q.fillStyle=cols[b];q.fillRect(x0,0,bw,h*.28);q.fillStyle='rgba(0,0,0,.25)';q.fillRect(x0,h*.28,bw,3)}},384,128);
+  const armM=new THREE.MeshLambertMaterial({map:armT,side:THREE.DoubleSide}),tyreM=new THREE.MeshLambertMaterial({map:tyreT,side:THREE.DoubleSide});
+  const wall=(pts,H,mat,tileLen)=>{if(pts.length<2)return;const pos=[],uv=[],ix=[];let u=0;
+   pts.forEach((p,k)=>{if(k)u+=Math.hypot(p[0]-pts[k-1][0],p[1]-pts[k-1][1]);const y=hMesh(p[0],p[1]);pos.push(p[0],y-.25,p[1],p[0],y+H,p[1]);uv.push(u/tileLen,0,u/tileLen,1);
+    if(k<pts.length-1){const j=k*2;ix.push(j,j+2,j+1,j+1,j+2,j+3)}});
+   const G=new THREE.BufferGeometry();G.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));G.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));G.setIndex(ix);G.computeVertexNormals();const m=new THREE.Mesh(G,mat);m.frustumCulled=false;S3.add(m)};
+  for(const sd of[0,1]){const sg=sd?1:-1;let run=[],type=-1;
+   const flush=()=>{if(run.length>1){if(type)wall(run,.8,armM,8);else wall(run,1.3,tyreM,24)}run=[];};
+   for(let i=0;i<=N;i++){const k=i%N,wd=WD[sd][k],pitZone=TRK==='spa'&&sd===1&&(k>=N-76||k<=52);
+    if(pitZone){flush();type=-1;continue}
+    const t=wd-TW/2<=15?1:0;if(t!==type){const last=run.length?run[run.length-1]:null;flush();type=t;if(last)run.push(last)}
+    const[x,z]=at(k,sg*wd);run.push([x,z])}flush()}
+ }}
 function zAt(o){const i=o.idx,h=TH[i],f=((o.x-TX[i])*cos(h)+(o.y-TY[i])*sin(h))/DS,j=f>=0?(i+1)%N:(i+N-1)%N;return TZ[i]+(TZ[j]-TZ[i])*Math.min(Math.abs(f),1)}
 // ---------- optional photo textures: drop these files next to index.html ----------
 // colour maps (required for the look) and normal maps (optional, OpenGL/GL style). 4K JPG works; tile = metres per repeat.
@@ -710,13 +741,40 @@ function car3d(o){const C=o.C,gp=new THREE.Group(),M=c=>new THREE.MeshLambertMat
 function render3d(){const p=P;
  for(const o of cars){if(!o.g)car3d(o);o.g.visible=!P||Math.abs(o.x-P.x)+Math.abs(o.y-P.y)<320;o.g.rotation.order="YZX";o.g.position.set(o.x,gY(o)+.08,o.y);{const t=offT(o);let pt=Math.atan(TS[o.idx]),rl=0;if(t>0){const f=2.4,c=cos(o.th),s=sin(o.th),hf=hAt(o.x+c*f,o.y+s*f),hb=hAt(o.x-c*f,o.y-s*f),hr=hAt(o.x-s*.9,o.y+c*.9),hl=hAt(o.x+s*.9,o.y-c*.9);pt=pt*(1-t)+Math.atan((hf-hb)/(2*f))*t;rl=Math.atan((hl-hr)/1.8)*t}o.g.rotation.set(rl,-o.th,pt)}o.bm.material.color.setHex(o.bl?0xff2020:0x501010)}
  if(camAng===undefined)camAng=p.th;let da=p.th-camAng;while(da>PI)da-=2*PI;while(da<-PI)da+=2*PI;camAng+=da*.12;
- const dist=(8+p.u*.05)*CAMDIST,hh=2.5+p.u*.01,fx=cos(camAng+CAMOFF),fz=sin(camAng+CAMOFF);
- const pz=gY(p);camZ=camZ===undefined?pz:camZ+(pz-camZ)*.12;C3.position.set(p.x-fx*dist,hh+camZ,p.y-fz*dist);if(CAMOFF)C3.lookAt(p.x,1+camZ,p.y);else C3.lookAt(p.x+fx*10,1.1+camZ,p.y+fz*10);C3.fov=68+p.u*.12;C3.updateProjectionMatrix();
+ const dist=(8+p.u*.05)*CAMDIST,hh=2.5+p.u*.01+CAMH,fx=cos(camAng+CAMOFF),fz=sin(camAng+CAMOFF);
+ const pz=gY(p);camZ=camZ===undefined?pz:camZ+(pz-camZ)*.12;C3.position.set(p.x-fx*dist,hh+camZ,p.y-fz*dist);if(CAMOFF)C3.lookAt(p.x,1+CAMLH+camZ,p.y);else C3.lookAt(p.x+fx*10,1.1+CAMLH+camZ,p.y+fz*10);C3.fov=68+p.u*.12+CAMFOV;C3.updateProjectionMatrix();
  {const FR=520;for(const c of CHK){const dx=c.userData.cx-C3.position.x,dz=c.userData.cz-C3.position.z,d2=dx*dx+dz*dz;c.visible=d2<FR*FR&&(d2<260*260||dx*fx+dz*fz>-200)}}}
 let ftE=16,ftN=0;
 function frame(t){requestAnimationFrame(frame);const raw=(t-lastT)||16,dt=Math.min(raw/1000||0,.034);lastT=t;
  if(state!=='menu'){ftE+=(Math.min(raw,100)-ftE)*.08;if(++ftN>=45){ftN=0;let n=RS;if(ftE>34&&RS>.75)n=Math.max(.75,RS-.05);else if(ftE<19&&RS<1)n=Math.min(1,RS+.1);if(n!==RS){RS=n;rs3()}}}
  if(state!=='menu'&&!tPause){acc+=dt;while(acc>=H0){step(H0);acc-=H0}}else if(gn)gn.gain.value=0;draw()}
+
+function initTuner(){
+ const files=[...new Set([...HYG,...GTG].map(e=>e[3]).filter(Boolean))],AL='alpine_a424__www.vecarz.com.glb',sel=$('tm'),box=$('tsl'),out=$('tout');
+ files.forEach(f=>{const o=document.createElement('option');o.value=f;o.textContent=f.replace(/\.glb$/,'');sel.appendChild(o)});if(files.includes(AL))sel.value=AL;
+ const MS=[['scale','Size (%)',50,150,.5],['raise','Height above ground (m)',-1.5,1.5,.01],['yaw','Rotate (deg)',-180,180,1],['pitch','Nose up/down (deg)',-15,15,.5],['roll','Roll (deg)',-15,15,.5],
+  ['bright','Brightness',.2,2.5,.01],['glow','Glow',0,1.5,.01],['env','Reflection',0,2,.01],['metal','Metalness',0,1,.01],['rough','Roughness',0,3,.01],['sat','Saturation',0,3,.01],['hue','Hue (deg)',-180,180,1],['r','Red',0,2,.01],['g','Green',0,2,.01],['b','Blue',0,2,.01]];
+ const CS=[['dist','Camera distance (x)',.3,3,.01,()=>CAMDIST,v=>CAMDIST=v],['h','Camera height (m)',-1.5,6,.05,()=>CAMH,v=>CAMH=v],['ang','Camera angle (deg)',-180,180,1,()=>Math.round(CAMOFF*180/PI),v=>CAMOFF=v*PI/180],
+  ['look','Look-at height (m)',-1,4,.05,()=>CAMLH,v=>CAMLH=v],['fov','Field of view (+/-)',-30,40,1,()=>CAMFOV,v=>CAMFOV=v]];
+ const rows={};
+ function mk(title){const h=document.createElement('h4');h.textContent=title;box.appendChild(h)}
+ function slider(key,label,mn,mx,st,get,set){const d=document.createElement('div');d.className='sr';d.innerHTML='<span>'+label+'</span><b></b><input type="range" min="'+mn+'" max="'+mx+'" step="'+st+'">';
+  const inp=d.querySelector('input'),b=d.querySelector('b');inp.oninput=()=>{set(+inp.value);b.textContent=(+inp.value).toFixed(st<1?2:0);report()};rows[key]={inp,b,get};box.appendChild(d)}
+ mk('Model (applies to every car using this file)');MS.forEach(([k,l,a,b,c])=>slider('m_'+k,l,a,b,c,()=>tk(sel.value)[k],v=>{tk(sel.value)[k]=v;applyTune(sel.value)}));
+ mk('Camera');CS.forEach(([k,l,a,b,c,g,s2])=>slider('c_'+k,l,a,b,c,g,s2));
+ function sync(){for(const k in rows){const r=rows[k],v=r.get(),st=+r.inp.step;r.inp.value=v;r.b.textContent=(+v).toFixed(st<1?2:0)}report()}
+ function report(){const t=tk(sel.value),f=n=>+(+n).toFixed(2);
+  out.value=sel.value+'\nsize '+f(t.scale)+'%, height '+f(t.raise)+' m, rotate '+f(t.yaw)+', pitch '+f(t.pitch)+', roll '+f(t.roll)+'\nbrightness '+f(t.bright)+', glow '+f(t.glow)+', reflection '+f(t.env)+', metal '+f(t.metal)+', rough '+f(t.rough)+'\nsaturation '+f(t.sat)+', hue '+f(t.hue)+', red '+f(t.r)+', green '+f(t.g)+', blue '+f(t.b)+
+  '\ncamera: distance x'+f(CAMDIST)+', height '+f(CAMH)+' m, angle '+Math.round(CAMOFF*180/PI)+', look-at '+f(CAMLH)+' m, fov '+f(CAMFOV)}
+ sel.onchange=sync;
+ $('treset').onclick=()=>{const f=sel.value;TUNE[f]=Object.assign({},TDEF,TBAKE[f]||{});applyTune(f);CAMDIST=1;CAMH=0;CAMOFF=0;CAMLH=0;CAMFOV=0;sync()};
+ $('tcopy').onclick=()=>{out.select();try{navigator.clipboard.writeText(out.value)}catch(e){try{document.execCommand('copy')}catch(e2){}}};
+ $('tfreeze').onclick=()=>{tPause=!tPause;$('tfreeze').textContent=tPause?'Unfreeze':'Freeze race'};
+ const show=on=>{$('tuner').style.display=on?'block':'none';if(on)sync()};
+ $('tbtn').onclick=()=>show($('tuner').style.display==='none');$('tx').onclick=()=>show(false);
+ addEventListener('keydown',e=>{if(e.target&&e.target.closest&&e.target.closest('#tuner'))return;if(e.key==='t'||e.key==='T'){if(!e.repeat&&state!=='menu')show($('tuner').style.display==='none')}});
+ setInterval(()=>{const on=state==='race'||state==='count'||tPause;$('tbtn').style.display=on?'block':'none';if(state==='menu'&&$('tuner').style.display!=='none'){show(false);if(tPause&&$('pause').style.display==='none'){tPause=false;$('tfreeze').textContent='Freeze race'}}},400)}
+try{initTuner()}catch(e){console.warn('tuner failed',e)}
 requestAnimationFrame(frame);
 
 
