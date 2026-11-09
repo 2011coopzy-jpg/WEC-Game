@@ -193,6 +193,7 @@ function track(o){
  if(o.idx>N*.8&&bi<N*.2){o.lap++;if(o.lap>=1){const lt=T-o.lapStart;o.last=lt;if(!o.best||lt<o.best)o.best=lt}o.lapStart=T}
  else if(o.idx<N*.2&&bi>N*.8)o.lap--;
  o.idx=bi;const h=TH[bi];o.d=(o.x-TX[bi])*-sin(h)+(o.y-TY[bi])*cos(h);o.prog=o.lap*N+bi;
+ {const k=Math.max(0,Math.floor((o.prog+N)/4));if(!o.tsg){o.tsg=[];o.tk=k-1}while(o.tk<k){o.tk++;o.tsg[o.tk]=T}}
  const ad=Math.abs(o.d),sd=o.d<0?0:1,gw=GW[sd][bi];const sT=ad<TW/2+1.2?1:(gw>1.5&&ad<TW/2+1.6+gw)?.8:ad<TW/2+3?.95:.9;o.surf=o.surf===undefined?sT:o.surf+(sT-o.surf)*.02;
  const lim=WD[sd][bi];if(ad>lim){const s=Math.sign(o.d),e=ad-lim;o.x+=sin(h)*s*e;o.y-=cos(h)*s*e;
   let rel=o.th-h;while(rel>PI)rel-=2*PI;while(rel<-PI)rel+=2*PI;const cl=(o.u*sin(rel)+o.v*cos(rel))*s;
@@ -371,13 +372,19 @@ function step(h){
    inp.thr+=clamp(tt-inp.thr,-6*h,3.5*h);inp.brk+=clamp(bb-inp.brk,-8*h,5*h);inp.st+=clamp(ss-inp.st,-rt*h,rt*h);thr=inp.thr;brk=inp.brk;st=inp.st;let gp=0;if(gpOk)try{gp=navigator.getGamepads()[0]}catch(e){gpOk=false}if(gp){const dz=x=>Math.abs(x)<.06?0:x,rt=gp.buttons[7]?gp.buttons[7].value:0,lt=gp.buttons[6]?gp.buttons[6].value:0;if(rt>.02||lt>.02){thr=rt;brk=lt}if(dz(gp.axes[0]))st=dz(gp.axes[0])}o.tc=tcOn}
   phys(o,h,thr,brk,st);track(o)}
  coll();}
+// time the car B was at track position p (interpolated from its 16 m split times)
+function tAt(B,p){const f=(p+N)/4,k=Math.floor(f),a=B.tsg&&B.tsg[k],b=B.tsg&&B.tsg[k+1];if(a===undefined)return null;return b===undefined?a:a+(b-a)*(f-k)}
+// time gap from car A back to car B who is ahead: how long ago B was where A is now
+function gapSec(A,B){if(A.fin&&B.fin)return A.ft-B.ft;const t=tAt(B,A.prog);return t===null?null:Math.max(0,T-t)}
+function gapStr(A,B){if(!A||!B||A===B)return'';const dl=Math.floor((B.prog-A.prog)/N);if(dl>=1&&!(A.fin&&B.fin))return'+'+dl+' L';
+ const g=gapSec(A,B);if(g===null)return'--';return g<100?'+'+g.toFixed(g<10?2:1):'+'+Math.floor(g/60)+':'+String(Math.floor(g%60)).padStart(2,'0')}
 const cmp=(a,b)=>a.fin&&b.fin?a.ft-b.ft:a.fin?-1:b.fin?1:b.prog-a.prog;
 const fmt=t=>t>0?Math.floor(t/60)+':'+(t%60).toFixed(3).padStart(6,'0'):'-:--.---';
 let resC=0;
 function renderRes(ci){resC=ci;const o=cars.filter(c=>c.ci===ci).sort(cmp);
  $('rtabs').innerHTML=CLS.map((c,k)=>`<button data-c="${k}" class="${k===ci?'on':''}">${c.n} (${cars.filter(x=>x.ci===k).length})</button>`).join('');
  $('rtabs').querySelectorAll('button').forEach(b=>b.onclick=()=>{renderRes(+b.dataset.c);$('tbl').scrollTop=0});
- $('tbl').innerHTML='<table><thead><tr><th>Pos</th><th>Car</th><th>Race time</th><th>Best lap</th></tr></thead><tbody>'+o.map((c,i)=>`<tr${c===P?' class="me"':''}><td>${i+1}</td><td>${c.name}</td><td>${c.fin?fmt(c.ft):'+'+Math.max(0,LAPS-Math.max(c.lap,0))+' lap'}</td><td>${fmt(c.best)}</td></tr>`).join('')+'</tbody></table>';
+ $('tbl').innerHTML='<table><thead><tr><th>Pos</th><th>Car</th><th>Race time</th><th>Gap</th><th>Int</th><th>Best lap</th></tr></thead><tbody>'+o.map((c,i)=>`<tr${c===P?' class="me"':''}><td>${i+1}</td><td>${c.name}</td><td>${c.fin?fmt(c.ft):'+'+Math.max(0,LAPS-Math.max(c.lap,0))+' lap'}</td><td>${i?gapStr(c,o[0]):''}</td><td>${i?gapStr(c,o[i-1]):''}</td><td>${fmt(c.best)}</td></tr>`).join('')+'</tbody></table>';
  if(P&&P.ci===ci){const r=$('tbl').querySelector('tr.me');if(r)setTimeout(()=>r.scrollIntoView({block:'center'}),0)}}
 function showRes(){$('res').style.display='flex';renderRes(P?P.ci:0)}
 $('again').onclick=()=>{$('res').style.display='none';$('menu').style.display='flex';state='menu'};
@@ -428,9 +435,14 @@ function oldDraw2d(){
 function hud(){
  const p=P,C=p.C,order=[...cars].sort(cmp),pos=order.indexOf(p)+1,cp=order.filter(o=>o.ci===p.ci).indexOf(p)+1;
  const rows=order.slice(0,6);if(!rows.includes(p))rows.push(p);
- panel(8,8,210,rows.length*19+8);
- rows.forEach((o,i)=>{const y=26+i*19,pp=order.indexOf(o)+1;g.fillStyle=o.C.col;g.fillRect(14,y-11,4,13);
-  txt(pp+'  '+o.name,24,y,12,o===p?'#fff':'#aab6c3');txt(o.C.s,210,y,11,o.C.col,'right')});
+ panel(8,8,318,rows.length*19+26);
+ txt('INT',248,22,10,'#6f7c8b','right');txt('GAP',314,22,10,'#6f7c8b','right');
+ rows.forEach((o,i)=>{const y=42+i*19,pp=order.indexOf(o)+1,me=o===p;
+  if(me){g.fillStyle='rgba(255,255,255,.1)';g.fillRect(10,y-13,314,17)}
+  g.fillStyle=o.C.col;g.fillRect(14,y-11,4,13);
+  g.save();g.beginPath();g.rect(22,y-14,162,19);g.clip();txt(pp+'  '+o.name,24,y,12,me?'#fff':'#aab6c3');g.restore();
+  txt(o.C.s,194,y,10,o.C.col,'right');
+  txt(pp===1?'':gapStr(o,order[pp-2]),248,y,11,me?'#fff':'#aab6c3','right');txt(pp===1?'Leader':gapStr(o,order[0]),314,y,11,me?'#fff':'#aab6c3','right')});
  const lap=clamp(p.lap+1,1,LAPS);panel(W-188,8,180,92);
  txt('Lap '+lap+' / '+LAPS,W-178,28,15);txt('Time  '+fmt(Math.max(0,T)),W-178,48,12,'#aab6c3');
  txt('Last  '+fmt(p.last),W-178,66,12,'#aab6c3');txt('Best  '+fmt(p.best),W-178,84,12,'#aab6c3');
@@ -452,7 +464,7 @@ function hud(){
  if(ac&&osc){osc.frequency.value=(p.rpm/60)*4*.6;gn.gain.value=muted?0:.025+.05*p.thr}}
 // ---------- 3D scene (three.js) ----------
 const R3=new THREE.WebGLRenderer({antialias:true,logarithmicDepthBuffer:true});R3.domElement.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:0';document.body.insertBefore(R3.domElement,cv);
-const S3=new THREE.Scene(),C3=new THREE.PerspectiveCamera(68,1,.6,3000);S3.background=new THREE.Color(0x8fb8e8);S3.fog=new THREE.Fog(0x8fb8e8,250,1800);
+const S3=new THREE.Scene(),C3=new THREE.PerspectiveCamera(68,1,.6,2600);S3.background=new THREE.Color(0x8fb8e8);S3.fog=new THREE.Fog(0x8fb8e8,200,1100);
 let RS=1;function rs3(){R3.setPixelRatio(Math.min(dpr,1.5)*RS);R3.setSize(W,H,false);C3.aspect=W/H;C3.updateProjectionMatrix()}addEventListener('resize',rs3);rs3();
 const TUNE={},REG={},TUNI={};let TSKY=.95,TSUN=0,CAMOFF=0,CAMDIST=1,tPause=false;
 const HEMI=new THREE.HemisphereLight(0xffffff,0x3a5a35,TSKY),SUN=new THREE.DirectionalLight(0xfff1d6,TSUN);SUN.position.set(30,38,15);S3.add(HEMI);S3.add(SUN);S3.add(SUN.target);
@@ -508,6 +520,14 @@ function grassTex(){const c=document.createElement('canvas');c.width=c.height=25
  for(let i=0;i<40;i++){x.fillStyle='rgba(40,70,30,.13)';x.beginPath();x.arc(Math.random()*256,Math.random()*256,10+Math.random()*25,0,7);x.fill()}
  for(let i=0;i<5000;i++){const r=Math.random();x.strokeStyle='hsl('+(85+r*30)+','+(35+r*25)+'%,'+(22+Math.random()*26)+'%)';x.lineWidth=1+Math.random();const px=Math.random()*256,py=Math.random()*256;x.beginPath();x.moveTo(px,py);x.lineTo(px+(Math.random()-.5)*3,py-2-Math.random()*5);x.stroke()}
  const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=4;return t}
+// split an instanced mesh into spatial chunks so far-away / behind-camera ones can be switched off
+const CHK=[];
+function chunkify(im,cell){cell=cell||260;const n=im.count,M=im.instanceMatrix.array,Cl=im.instanceColor?im.instanceColor.array:null,g=new Map();
+ for(let i=0;i<n;i++){const key=Math.floor(M[i*16+12]/cell)+'_'+Math.floor(M[i*16+14]/cell);let a=g.get(key);if(!a)g.set(key,a=[]);a.push(i)}
+ for(const ids of g.values()){const c=new THREE.InstancedMesh(im.geometry,im.material,ids.length);let sx=0,sz=0;
+  ids.forEach((i,k)=>{for(let q=0;q<16;q++)c.instanceMatrix.array[k*16+q]=M[i*16+q];sx+=M[i*16+12];sz+=M[i*16+14];
+   if(Cl){if(!c.instanceColor)c.instanceColor=new THREE.InstancedBufferAttribute(new Float32Array(ids.length*3),3);for(let q=0;q<3;q++)c.instanceColor.array[k*3+q]=Cl[i*3+q]}});
+  c.instanceMatrix.needsUpdate=true;if(c.instanceColor)c.instanceColor.needsUpdate=true;c.frustumCulled=false;c.userData.cx=sx/ids.length;c.userData.cz=sz/ids.length;CHK.push(c);S3.add(c)}}
 // trees, bushes and Spa-style buildings (positions approximate)
 function scenery(){
  let sd=987654;const rnd=()=>{sd=(sd*1664525+1013904223)>>>0;return sd/4294967296},D=new THREE.Object3D(),M=c=>new THREE.MeshLambertMaterial({color:c}),bl=[];
@@ -546,17 +566,17 @@ function scenery(){
   for(let c=0;c<cnt;c++){const lat=WD[sd][i]+3+Math.pow(rnd(),1.6)*(dn===2?90:60),[x,z]=at(i+Math.floor(rnd()*3)-1,sg*lat);if(dTrack(x,z)>=WD[sd][i]+1.5)plant(x,z)}}
  for(let t=0,n=0;t<26000&&n<2600;t++){const x=-650+rnd()*1800,z=-450+rnd()*2600,d=dTrack(x,z);if(d<80||d>300)continue;
   if(Math.sin(x*.012)*Math.sin(z*.014)+Math.sin((x-z)*.02)*.5<-.25)continue;plant(x,z);n++}
- for(const o of[pn,pn2,tk,bro])o.frustumCulled=false;pn.count=pn2.count=np;tk.count=nt;bro.count=nb;S3.add(pn);S3.add(pn2);S3.add(tk);S3.add(bro);
+ for(const o of[pn,pn2,tk,bro])o.frustumCulled=false;pn.count=pn2.count=np;tk.count=nt;bro.count=nb;for(const o of[pn,pn2,tk,bro])chunkify(o);
  const MB=1400,bu=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1.3,0),M(0xffffff),MB);let m=0;
  for(let i=0;i<N&&m<MB;i+=3)for(const sd of[0,1]){if(!FD[i]||rnd()>.55)continue;const sg=sd?1:-1,[x,z]=at(i,sg*(WD[sd][i]+1.5+rnd()*9)),k=.8+rnd()*1.4;
   D.rotation.set(0,rnd()*6,0);D.scale.set(k,k*.75,k);D.position.set(x,hAt(x,z)+.6*k,z);D.updateMatrix();bu.setMatrixAt(m,D.matrix);bu.setColorAt(m,new THREE.Color().setHSL(.22+rnd()*.12,.5,.25+rnd()*.12));m++}
- bu.count=m;bu.frustumCulled=false;S3.add(bu);
+ bu.count=m;chunkify(bu);
  // Armco where the wall is near the track, tyre walls where there is a run-off area in front of it
  {const am=new THREE.InstancedMesh(new THREE.BoxGeometry(7.85,.55,.14),new THREE.MeshLambertMaterial({color:0xc8ced6}),N+8),tw=new THREE.InstancedMesh(new THREE.BoxGeometry(3.85,1.3,1),M(0xffffff),2*N);let na=0,ntw=0;const tc=[0xf2f2f2,0xd1202e,0x1f4fa8];
   for(const sd of[0,1]){const sg=sd?1:-1;for(let i=0;i<N;i++){const wd=WD[sd][i],near=wd-TW/2<=15;if(near&&i%2)continue;const[x,z,h]=at(i,sg*wd);
    const vs=.96+rnd()*.08;D.rotation.set(0,-h,0);D.scale.set(1,vs,1);D.position.set(x,hAt(x,z)+(near?.55:.65)*vs,z);D.updateMatrix();
    if(near&&na<N+8)am.setMatrixAt(na++,D.matrix);else if(!near&&ntw<2*N){tw.setMatrixAt(ntw,D.matrix);tw.setColorAt(ntw++,new THREE.Color(tc[(i>>1)%3]))}}}
-  am.count=na;tw.count=ntw;am.frustumCulled=tw.frustumCulled=false;S3.add(am);S3.add(tw)}}
+  am.count=na;tw.count=ntw;chunkify(am,200);chunkify(tw,200)}}
 function zAt(o){const i=o.idx,h=TH[i],f=((o.x-TX[i])*cos(h)+(o.y-TY[i])*sin(h))/DS,j=f>=0?(i+1)%N:(i+N-1)%N;return TZ[i]+(TZ[j]-TZ[i])*Math.min(Math.abs(f),1)}
 // ---------- optional photo textures: drop these files next to index.html ----------
 // colour maps (required for the look) and normal maps (optional, OpenGL/GL style). 4K JPG works; tile = metres per repeat.
@@ -615,7 +635,8 @@ function render3d(){const p=P;
  for(const o of cars){if(!o.g)car3d(o);o.g.visible=!P||Math.abs(o.x-P.x)+Math.abs(o.y-P.y)<420;o.g.rotation.order="YZX";o.g.position.set(o.x,gY(o)+.08,o.y);{const t=offT(o);let pt=Math.atan(TS[o.idx]),rl=0;if(t>0){const f=2.4,c=cos(o.th),s=sin(o.th),hf=hAt(o.x+c*f,o.y+s*f),hb=hAt(o.x-c*f,o.y-s*f),hr=hAt(o.x-s*.9,o.y+c*.9),hl=hAt(o.x+s*.9,o.y-c*.9);pt=pt*(1-t)+Math.atan((hf-hb)/(2*f))*t;rl=Math.atan((hl-hr)/1.8)*t}o.g.rotation.set(rl,-o.th,pt)}o.bm.material.color.setHex(o.bl?0xff2020:0x501010)}
  if(camAng===undefined)camAng=p.th;let da=p.th-camAng;while(da>PI)da-=2*PI;while(da<-PI)da+=2*PI;camAng+=da*.12;
  const dist=(8+p.u*.05)*CAMDIST,hh=2.5+p.u*.01,fx=cos(camAng+CAMOFF),fz=sin(camAng+CAMOFF);
- const pz=gY(p);camZ=camZ===undefined?pz:camZ+(pz-camZ)*.12;C3.position.set(p.x-fx*dist,hh+camZ,p.y-fz*dist);if(CAMOFF)C3.lookAt(p.x,1+camZ,p.y);else C3.lookAt(p.x+fx*10,1.1+camZ,p.y+fz*10);C3.fov=68+p.u*.12;C3.updateProjectionMatrix()}
+ const pz=gY(p);camZ=camZ===undefined?pz:camZ+(pz-camZ)*.12;C3.position.set(p.x-fx*dist,hh+camZ,p.y-fz*dist);if(CAMOFF)C3.lookAt(p.x,1+camZ,p.y);else C3.lookAt(p.x+fx*10,1.1+camZ,p.y+fz*10);C3.fov=68+p.u*.12;C3.updateProjectionMatrix();
+ {const FR=950;for(const c of CHK){const dx=c.userData.cx-C3.position.x,dz=c.userData.cz-C3.position.z,d2=dx*dx+dz*dz;c.visible=d2<FR*FR&&(d2<260*260||dx*fx+dz*fz>-200)}}}
 let ftE=16,ftN=0;
 function frame(t){requestAnimationFrame(frame);const raw=(t-lastT)||16,dt=Math.min(raw/1000||0,.034);lastT=t;
  if(state!=='menu'){ftE+=(Math.min(raw,100)-ftE)*.08;if(++ftN>=45){ftN=0;let n=RS;if(ftE>24&&RS>.55)n=Math.max(.55,RS-.15);else if(ftE<15&&RS<1)n=Math.min(1,RS+.1);if(n!==RS){RS=n;rs3()}}}
