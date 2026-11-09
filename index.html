@@ -17,14 +17,6 @@ button,select{font:inherit;color:var(--fg);background:#1d2630;border:1px solid #
 .row button{flex:1;font-weight:700}
 .row button.on[data-c="0"]{background:var(--red);border-color:var(--red)}
 .row button.on[data-c="1"]{background:var(--org);border-color:var(--org);color:#111}
-#tbtn{position:fixed;right:10px;bottom:10px;z-index:40;padding:8px 12px;font-size:12px;opacity:.85}
-#tuner{position:fixed;right:8px;top:8px;width:290px;max-height:calc(100vh - 16px);overflow:auto;background:rgba(12,16,22,.94);border:1px solid #2a3442;border-radius:10px;padding:10px;z-index:60;font-size:12px}
-#tuner .th{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}#tuner .th button{padding:2px 9px}
-#tuner .tsel{display:grid;gap:4px;color:var(--mut);margin-bottom:6px}#tuner select{width:100%}
-#tuner h4{margin:10px 0 4px;font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
-#tuner .sr{display:grid;grid-template-columns:1fr auto;gap:0 8px;margin:3px 0}#tuner .sr span{color:var(--mut)}#tuner .sr b{font-weight:600}#tuner .sr input{grid-column:1/3;width:100%;margin:0}
-#tuner .tbtns{display:flex;gap:6px;margin:10px 0 6px;flex-wrap:wrap}#tuner .tbtns button{padding:6px 10px;font-size:12px}
-#tuner textarea{width:100%;background:#0b0e12;color:#cfd8e3;border:1px solid #2a3442;border-radius:6px;font:11px ui-monospace,monospace;resize:vertical;box-sizing:border-box}
 #pcard{max-width:340px;text-align:center}
 .pbtns{display:grid;gap:8px;margin:14px 0 6px}
 .pbtns button{padding:12px;font-weight:700}
@@ -86,11 +78,6 @@ LD.set(.05);
 <div id="clist"></div>
 <div class="mbar"><button id="back">Back</button><label>Race length <select id="laps"><option value="2">2 laps</option><option value="3" selected>3 laps</option><option value="5">5 laps</option><option value="10">10 laps</option></select></label><button id="go">Start race</button></div>
 </div></div>
-<button id="tbtn" style="display:none">Tuner (T)</button>
-<div id="tuner" style="display:none"><div class="th"><b>Tuner</b><button id="tx">×</button></div>
-<label class="tsel">Model <select id="tm"></select></label><div id="tsl"></div>
-<div class="tbtns"><button id="tfreeze">Freeze race</button><button id="treset">Reset</button><button id="tcopy">Copy values</button></div>
-<textarea id="tout" readonly rows="7"></textarea></div>
 <div class="ov" id="pause" style="display:none"><div class="card" id="pcard"><h1>Paused</h1><div class="pbtns"><button id="presume">Resume</button><button id="prestart">Restart race</button><button id="pquit">Quit to menu</button></div><p>Press Esc or P to resume.</p></div></div>
 <div class="ov" id="res" style="display:none"><div class="card"><h1>Chequered flag</h1><div id="rtabs"></div><div id="tbl"></div><button id="again">Race again</button></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -528,7 +515,7 @@ const HEMI=new THREE.HemisphereLight(0xffffff,0x3a5a35,TSKY),SUN=new THREE.Direc
 const TDEF={yaw:0,pitch:0,roll:0,scale:100,raise:0,bright:1.1,glow:.12,env:.8,metal:.12,rough:1,sat:1,hue:0,r:1,g:1,b:1};
 const TBAKE={ // settings built into the game (the Tuner sliders start from these)
  '2026_af_corsa_ferrari_499p.glb':{yaw:-21},
- 'alpine_a424__www.vecarz.com.glb':{scale:98,bright:1.05,raise:-.12,glow:.42,env:.25,metal:0,rough:1.75,sat:2,r:1.11,b:1.11}};
+ 'alpine_a424__www.vecarz.com.glb':{scale:92,bright:1.05,raise:-.79,glow:.42,env:.25,metal:0,rough:1.75,sat:2,r:1.11,b:1.11}};
 function tk(f){return TUNE[f]||(TUNE[f]=Object.assign({},TDEF,TBAKE[f]||{}))}
 function treg(f){return REG[f]||(REG[f]={mats:[],pivs:[]})}
 function tuni(f){return TUNI[f]||(TUNI[f]={uSat:{value:1},uHue:{value:0}})}
@@ -749,32 +736,6 @@ function frame(t){requestAnimationFrame(frame);const raw=(t-lastT)||16,dt=Math.m
  if(state!=='menu'){ftE+=(Math.min(raw,100)-ftE)*.08;if(++ftN>=45){ftN=0;let n=RS;if(ftE>34&&RS>.75)n=Math.max(.75,RS-.05);else if(ftE<19&&RS<1)n=Math.min(1,RS+.1);if(n!==RS){RS=n;rs3()}}}
  if(state!=='menu'&&!tPause){acc+=dt;while(acc>=H0){step(H0);acc-=H0}}else if(gn)gn.gain.value=0;draw()}
 
-function initTuner(){
- const files=[...new Set([...HYG,...GTG].map(e=>e[3]).filter(Boolean))],AL='alpine_a424__www.vecarz.com.glb',sel=$('tm'),box=$('tsl'),out=$('tout');
- files.forEach(f=>{const o=document.createElement('option');o.value=f;o.textContent=f.replace(/\.glb$/,'');sel.appendChild(o)});if(files.includes(AL))sel.value=AL;
- const MS=[['scale','Size (%)',50,150,.5],['raise','Height above ground (m)',-1.5,1.5,.01],['yaw','Rotate (deg)',-180,180,1],['pitch','Nose up/down (deg)',-15,15,.5],['roll','Roll (deg)',-15,15,.5],
-  ['bright','Brightness',.2,2.5,.01],['glow','Glow',0,1.5,.01],['env','Reflection',0,2,.01],['metal','Metalness',0,1,.01],['rough','Roughness',0,3,.01],['sat','Saturation',0,3,.01],['hue','Hue (deg)',-180,180,1],['r','Red',0,2,.01],['g','Green',0,2,.01],['b','Blue',0,2,.01]];
- const CS=[['dist','Camera distance (x)',.3,3,.01,()=>CAMDIST,v=>CAMDIST=v],['h','Camera height (m)',-1.5,6,.05,()=>CAMH,v=>CAMH=v],['ang','Camera angle (deg)',-180,180,1,()=>Math.round(CAMOFF*180/PI),v=>CAMOFF=v*PI/180],
-  ['look','Look-at height (m)',-1,4,.05,()=>CAMLH,v=>CAMLH=v],['fov','Field of view (+/-)',-30,40,1,()=>CAMFOV,v=>CAMFOV=v]];
- const rows={};
- function mk(title){const h=document.createElement('h4');h.textContent=title;box.appendChild(h)}
- function slider(key,label,mn,mx,st,get,set){const d=document.createElement('div');d.className='sr';d.innerHTML='<span>'+label+'</span><b></b><input type="range" min="'+mn+'" max="'+mx+'" step="'+st+'">';
-  const inp=d.querySelector('input'),b=d.querySelector('b');inp.oninput=()=>{set(+inp.value);b.textContent=(+inp.value).toFixed(st<1?2:0);report()};rows[key]={inp,b,get};box.appendChild(d)}
- mk('Model (applies to every car using this file)');MS.forEach(([k,l,a,b,c])=>slider('m_'+k,l,a,b,c,()=>tk(sel.value)[k],v=>{tk(sel.value)[k]=v;applyTune(sel.value)}));
- mk('Camera');CS.forEach(([k,l,a,b,c,g,s2])=>slider('c_'+k,l,a,b,c,g,s2));
- function sync(){for(const k in rows){const r=rows[k],v=r.get(),st=+r.inp.step;r.inp.value=v;r.b.textContent=(+v).toFixed(st<1?2:0)}report()}
- function report(){const t=tk(sel.value),f=n=>+(+n).toFixed(2);
-  out.value=sel.value+'\nsize '+f(t.scale)+'%, height '+f(t.raise)+' m, rotate '+f(t.yaw)+', pitch '+f(t.pitch)+', roll '+f(t.roll)+'\nbrightness '+f(t.bright)+', glow '+f(t.glow)+', reflection '+f(t.env)+', metal '+f(t.metal)+', rough '+f(t.rough)+'\nsaturation '+f(t.sat)+', hue '+f(t.hue)+', red '+f(t.r)+', green '+f(t.g)+', blue '+f(t.b)+
-  '\ncamera: distance x'+f(CAMDIST)+', height '+f(CAMH)+' m, angle '+Math.round(CAMOFF*180/PI)+', look-at '+f(CAMLH)+' m, fov '+f(CAMFOV)}
- sel.onchange=sync;
- $('treset').onclick=()=>{const f=sel.value;TUNE[f]=Object.assign({},TDEF,TBAKE[f]||{});applyTune(f);CAMDIST=1;CAMH=0;CAMOFF=0;CAMLH=0;CAMFOV=0;sync()};
- $('tcopy').onclick=()=>{out.select();try{navigator.clipboard.writeText(out.value)}catch(e){try{document.execCommand('copy')}catch(e2){}}};
- $('tfreeze').onclick=()=>{tPause=!tPause;$('tfreeze').textContent=tPause?'Unfreeze':'Freeze race'};
- const show=on=>{$('tuner').style.display=on?'block':'none';if(on)sync()};
- $('tbtn').onclick=()=>show($('tuner').style.display==='none');$('tx').onclick=()=>show(false);
- addEventListener('keydown',e=>{if(e.target&&e.target.closest&&e.target.closest('#tuner'))return;if(e.key==='t'||e.key==='T'){if(!e.repeat&&state!=='menu')show($('tuner').style.display==='none')}});
- setInterval(()=>{const on=state==='race'||state==='count'||tPause;$('tbtn').style.display=on?'block':'none';if(state==='menu'&&$('tuner').style.display!=='none'){show(false);if(tPause&&$('pause').style.display==='none'){tPause=false;$('tfreeze').textContent='Freeze race'}}},400)}
-try{initTuner()}catch(e){console.warn('tuner failed',e)}
 requestAnimationFrame(frame);
 
 
