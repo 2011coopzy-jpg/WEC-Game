@@ -17,6 +17,12 @@ button,select{font:inherit;color:var(--fg);background:#1d2630;border:1px solid #
 .row button{flex:1;font-weight:700}
 .row button.on[data-c="0"]{background:var(--red);border-color:var(--red)}
 .row button.on[data-c="1"]{background:var(--org);border-color:var(--org);color:#111}
+#tcard{max-width:520px}
+#tlist{display:grid;gap:8px;margin:10px 0}
+.trkb{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;padding:14px 16px;background:#1a222c}
+.trkb span{color:var(--mut);font-size:12px}
+.trkb.sel{border-color:#fff;background:#26313d}
+#tgo{background:var(--red);border-color:var(--red);font-weight:800;padding:10px 28px}
 #mcard{max-width:980px}
 #clist{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;max-height:min(58vh,520px);overflow:auto;margin:12px 0 8px;padding-right:4px;align-content:start}
 .team{background:#10161d;border:1px solid #232d38;border-radius:10px;padding:8px}
@@ -58,11 +64,15 @@ window.LD={set(p,t){p=Math.max(0,Math.min(1,p));document.getElementById('ldf').s
  done(){const e=document.getElementById('ld');e.classList.add('done');setTimeout(()=>e.style.display='none',600)}};
 LD.set(.05);
 </script>
+<div class="ov" id="trk" style="display:none"><div class="card" id="tcard">
+<small>Select track</small>
+<div id="tlist"><button class="trkb sel" data-t="spa"><b>Spa-Francorchamps</b><span>Belgium · 7.0 km</span></button></div>
+<div class="mbar"><span></span><button id="tgo">Continue</button></div>
+</div></div>
 <div class="ov" id="menu" style="display:none"><div class="card" id="mcard">
-<h1>WEC Game</h1>
 <div class="row"><button data-c="0" class="on">Hypercar</button><button data-c="1">LMGT3</button></div>
 <div id="clist"></div>
-<div class="mbar"><label>Race length <select id="laps"><option value="2">2 laps</option><option value="3" selected>3 laps</option><option value="5">5 laps</option><option value="10">10 laps</option></select></label><button id="go">Start race</button></div>
+<div class="mbar"><button id="back">Back</button><label>Race length <select id="laps"><option value="2">2 laps</option><option value="3" selected>3 laps</option><option value="5">5 laps</option><option value="10">10 laps</option></select></label><button id="go">Start race</button></div>
 </div></div>
 <div class="ov" id="res" style="display:none"><div class="card"><h1>Chequered flag</h1><div id="rtabs"></div><div id="tbl"></div><button id="again">Race again</button></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -372,6 +382,8 @@ function renderRes(ci){resC=ci;const o=cars.filter(c=>c.ci===ci).sort(cmp);
 function showRes(){$('res').style.display='flex';renderRes(P?P.ci:0)}
 $('again').onclick=()=>{$('res').style.display='none';$('menu').style.display='flex';state='menu'};
 $('go').onclick=startRace;
+$('tgo').onclick=()=>{$('trk').style.display='none';$('menu').style.display='flex'};
+$('back').onclick=()=>{$('menu').style.display='none';$('trk').style.display='flex'};
 function spec(){
  const L=selC?GTG:HYG,hex=n=>'#'+n.toString(16).padStart(6,'0'),box=$('clist');box.innerHTML='';
  const teams=[];L.forEach((e,i)=>{let t=teams.find(x=>x.n===e[1]);if(!t)teams.push(t={n:e[1],c:[]});t.c.push([e,i])});
@@ -441,7 +453,7 @@ function hud(){
 // ---------- 3D scene (three.js) ----------
 const R3=new THREE.WebGLRenderer({antialias:true,logarithmicDepthBuffer:true});R3.domElement.style.cssText='position:fixed;inset:0;width:100%;height:100%;z-index:0';document.body.insertBefore(R3.domElement,cv);
 const S3=new THREE.Scene(),C3=new THREE.PerspectiveCamera(68,1,.6,3000);S3.background=new THREE.Color(0x8fb8e8);S3.fog=new THREE.Fog(0x8fb8e8,250,1800);
-function rs3(){R3.setPixelRatio(dpr);R3.setSize(W,H,false);C3.aspect=W/H;C3.updateProjectionMatrix()}addEventListener('resize',rs3);rs3();
+let RS=1;function rs3(){R3.setPixelRatio(Math.min(dpr,1.5)*RS);R3.setSize(W,H,false);C3.aspect=W/H;C3.updateProjectionMatrix()}addEventListener('resize',rs3);rs3();
 const TUNE={},REG={},TUNI={};let TSKY=.95,TSUN=0,CAMOFF=0,CAMDIST=1,tPause=false;
 const HEMI=new THREE.HemisphereLight(0xffffff,0x3a5a35,TSKY),SUN=new THREE.DirectionalLight(0xfff1d6,TSUN);SUN.position.set(30,38,15);S3.add(HEMI);S3.add(SUN);S3.add(SUN.target);
 {try{const pm=new THREE.PMREMGenerator(R3),es=new THREE.Scene(),gg=new THREE.SphereGeometry(50,32,16),ps=gg.attributes.position,cc=[],a=new THREE.Color(0x8fb8e8),b=new THREE.Color(0xffffff),c=new THREE.Color(0x5a6b55),t=new THREE.Color();
@@ -600,11 +612,13 @@ function car3d(o){const C=o.C,gp=new THREE.Group(),M=c=>new THREE.MeshLambertMat
  for(const ax of[C.a,-C.b])for(const s of[-1,1]){const w=new THREE.Mesh(new THREE.CylinderGeometry(.36,.36,.42,14).rotateX(PI/2),M(0x0a0a0a));w.position.set(ax,.36,s*(C.wid/2-.1));gp.add(w)}
  o.bm=new THREE.Mesh(new THREE.BoxGeometry(.1,.16,1.2),new THREE.MeshBasicMaterial({color:0x501010}));o.g=gp;S3.add(gp);useModel(o)}
 function render3d(){const p=P;
- for(const o of cars){if(!o.g)car3d(o);o.g.rotation.order="YZX";o.g.position.set(o.x,gY(o)+.08,o.y);{const t=offT(o);let pt=Math.atan(TS[o.idx]),rl=0;if(t>0){const f=2.4,c=cos(o.th),s=sin(o.th),hf=hAt(o.x+c*f,o.y+s*f),hb=hAt(o.x-c*f,o.y-s*f),hr=hAt(o.x-s*.9,o.y+c*.9),hl=hAt(o.x+s*.9,o.y-c*.9);pt=pt*(1-t)+Math.atan((hf-hb)/(2*f))*t;rl=Math.atan((hl-hr)/1.8)*t}o.g.rotation.set(rl,-o.th,pt)}o.bm.material.color.setHex(o.bl?0xff2020:0x501010)}
+ for(const o of cars){if(!o.g)car3d(o);o.g.visible=!P||Math.abs(o.x-P.x)+Math.abs(o.y-P.y)<420;o.g.rotation.order="YZX";o.g.position.set(o.x,gY(o)+.08,o.y);{const t=offT(o);let pt=Math.atan(TS[o.idx]),rl=0;if(t>0){const f=2.4,c=cos(o.th),s=sin(o.th),hf=hAt(o.x+c*f,o.y+s*f),hb=hAt(o.x-c*f,o.y-s*f),hr=hAt(o.x-s*.9,o.y+c*.9),hl=hAt(o.x+s*.9,o.y-c*.9);pt=pt*(1-t)+Math.atan((hf-hb)/(2*f))*t;rl=Math.atan((hl-hr)/1.8)*t}o.g.rotation.set(rl,-o.th,pt)}o.bm.material.color.setHex(o.bl?0xff2020:0x501010)}
  if(camAng===undefined)camAng=p.th;let da=p.th-camAng;while(da>PI)da-=2*PI;while(da<-PI)da+=2*PI;camAng+=da*.12;
  const dist=(8+p.u*.05)*CAMDIST,hh=2.5+p.u*.01,fx=cos(camAng+CAMOFF),fz=sin(camAng+CAMOFF);
  const pz=gY(p);camZ=camZ===undefined?pz:camZ+(pz-camZ)*.12;C3.position.set(p.x-fx*dist,hh+camZ,p.y-fz*dist);if(CAMOFF)C3.lookAt(p.x,1+camZ,p.y);else C3.lookAt(p.x+fx*10,1.1+camZ,p.y+fz*10);C3.fov=68+p.u*.12;C3.updateProjectionMatrix()}
-function frame(t){requestAnimationFrame(frame);const dt=Math.min((t-lastT)/1000||0,.05);lastT=t;
+let ftE=16,ftN=0;
+function frame(t){requestAnimationFrame(frame);const raw=(t-lastT)||16,dt=Math.min(raw/1000||0,.034);lastT=t;
+ if(state!=='menu'){ftE+=(Math.min(raw,100)-ftE)*.08;if(++ftN>=45){ftN=0;let n=RS;if(ftE>24&&RS>.55)n=Math.max(.55,RS-.15);else if(ftE<15&&RS<1)n=Math.min(1,RS+.1);if(n!==RS){RS=n;rs3()}}}
  if(state!=='menu'&&!tPause){acc+=dt;while(acc>=H0){step(H0);acc-=H0}}else if(gn)gn.gain.value=0;draw()}
 requestAnimationFrame(frame);
 
@@ -616,7 +630,7 @@ requestAnimationFrame(frame);
  onMP=(f,v)=>{fr[f]=Math.max(fr[f],v);upd()};
  LD.set(.3,'Loading models and textures...');
  Promise.race([Promise.all(files.map(f=>TEXF[f]?loadTexFile(f).then(t=>{if(t)applyTex(f,t);onMP(f,1)}):loadModel(f))),new Promise(r=>setTimeout(r,60000))]).then(()=>{
-  mstat();LD.set(1,'Ready');setTimeout(()=>{LD.done();$('menu').style.display='flex'},300)})}
+  mstat();LD.set(1,'Ready');setTimeout(()=>{LD.done();$('trk').style.display='flex'},300)})}
 };
 requestAnimationFrame(()=>setTimeout(()=>{try{window.__boot()}catch(e){console.error(e);LD.set(0,'Failed to start: '+e.message)}},40));
 </script></body></html>
