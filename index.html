@@ -628,12 +628,29 @@ function scenery(){
    pts.forEach((p,k)=>{if(k)u+=Math.hypot(p[0]-pts[k-1][0],p[1]-pts[k-1][1]);const y=hMesh(p[0],p[1]);pos.push(p[0],y-.25,p[1],p[0],y+H,p[1]);uv.push(u/tileLen,0,u/tileLen,1);
     if(k<pts.length-1){const j=k*2;ix.push(j,j+2,j+1,j+1,j+2,j+3)}});
    const G=new THREE.BufferGeometry();G.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));G.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));G.setIndex(ix);G.computeVertexNormals();const m=new THREE.Mesh(G,mat);m.frustumCulled=false;S3.add(m)};
+  // ---- real 3D barriers: stacked tyre walls (instanced) and W-beam armco on posts ----
+  const resamp=(pts,sp)=>{const o=[];let acc=0;for(let k=0;k<pts.length-1;k++){const a=pts[k],b=pts[k+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<1e-6)continue;const tx=(b[0]-a[0])/L,tz=(b[1]-a[1])/L;while(acc<L){o.push([a[0]+tx*acc,a[1]+tz*acc,tx,tz]);acc+=sp}acc-=L}return o};
+  const TYR=[],POST=[],tyreCol=[new THREE.Color(0xf2f2f2),new THREE.Color(0xd1202e),new THREE.Color(0x1f4fa8)],dark=new THREE.Color();
+  const tyres=(run,sg)=>{const sp=.72,P=resamp(run,sp);P.forEach((p,i)=>{const ox=-p[3]*sg,oz=p[2]*sg,x=p[0]+ox*.36,z=p[1]+oz*.36,y=hMesh(p[0],p[1]);
+    for(let l=0;l<3;l++){const sh=(l%2)*.36;TYR.push([x+p[2]*sh,y+.2+l*.4,z+p[3]*sh,l===2?tyreCol[Math.floor(i/9)%3]:null])}})};
+  const rail=[[0,.33],[-.07,.43],[0,.5],[-.07,.6],[0,.7],[.1,.7],[.1,.33]],railM=new THREE.MeshLambertMaterial({color:0xc4cbd2,side:THREE.DoubleSide});
+  const armco=(run,sg)=>{const P=resamp(run,2),SEG=40,np=rail.length;
+   for(let a=0;a<P.length-1;a+=SEG-1){const q=P.slice(a,Math.min(P.length,a+SEG));if(q.length<2)continue;const pos=[],ix=[];
+    q.forEach((p,i)=>{const ox=-p[3]*sg,oz=p[2]*sg,y=hMesh(p[0],p[1]);for(const[l,h]of rail)pos.push(p[0]+ox*l,y+h,p[1]+oz*l);
+     if(i<q.length-1)for(let e=0;e<np;e++){const a0=i*np+e,a1=i*np+(e+1)%np,b0=a0+np,b1=a1+np;ix.push(a0,b0,a1,a1,b0,b1)}});
+    const G=new THREE.BufferGeometry();G.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));G.setIndex(ix);G.computeVertexNormals();S3.add(new THREE.Mesh(G,railM))}
+   resamp(run,4).forEach(p=>{const ox=-p[3]*sg,oz=p[2]*sg;POST.push([p[0]+ox*.14,hMesh(p[0],p[1])+.35,p[1]+oz*.14,Math.atan2(p[2],p[3])])})};
   for(const sd of[0,1]){const sg=sd?1:-1;let run=[],type=-1;
-   const flush=()=>{if(run.length>1){if(type)wall(run,.8,armM,8);else wall(run,1.3,tyreM,24)}run=[];};
+   const flush=()=>{if(run.length>1){if(type)armco(run,sg);else tyres(run,sg)}run=[];};
    for(let i=0;i<=N;i++){const k=i%N,wd=WD[sd][k],pitZone=TRK==='spa'&&sd===1&&(k>=N-76||k<=52);
     if(pitZone){flush();type=-1;continue}
-    const t=wd-TW/2<=15?1:0;if(t!==type){const last=run.length?run[run.length-1]:null;flush();type=t;if(last)run.push(last)}
+    const t=GW[sd][k]>1.5?0:1;if(t!==type){const last=run.length?run[run.length-1]:null;flush();type=t;if(last)run.push(last)}
     const[x,z]=at(k,sg*wd);run.push([x,z])}flush()}
+  {const tn=TYR.length,tg=new THREE.CylinderGeometry(.34,.34,.38,6),tm=new THREE.InstancedMesh(tg,new THREE.MeshLambertMaterial({color:0xffffff}),Math.max(1,tn)),D2=new THREE.Object3D();
+   TYR.forEach((t,i)=>{D2.position.set(t[0],t[1],t[2]);D2.rotation.set(0,(i*2.399)%6.28,0);D2.updateMatrix();tm.setMatrixAt(i,D2.matrix);tm.setColorAt(i,t[3]||dark.setHSL(0,0,.05+((i*7919)%13)/260))});
+   tm.count=tn;tm.frustumCulled=false;chunkify(tm,160);
+   const pn=POST.length,pm=new THREE.InstancedMesh(new THREE.BoxGeometry(.1,.7,.1),new THREE.MeshLambertMaterial({color:0x6f7780}),Math.max(1,pn));
+   POST.forEach((t,i)=>{D2.position.set(t[0],t[1],t[2]);D2.rotation.set(0,t[3],0);D2.updateMatrix();pm.setMatrixAt(i,D2.matrix)});pm.count=pn;pm.frustumCulled=false;chunkify(pm,200)}
  }}
 function zAt(o){const i=o.idx,h=TH[i],f=((o.x-TX[i])*cos(h)+(o.y-TY[i])*sin(h))/DS,j=f>=0?(i+1)%N:(i+N-1)%N;return TZ[i]+(TZ[j]-TZ[i])*Math.min(Math.abs(f),1)}
 // ---------- optional photo textures: drop these files next to index.html ----------
