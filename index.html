@@ -629,28 +629,31 @@ function scenery(){
     if(k<pts.length-1){const j=k*2;ix.push(j,j+2,j+1,j+1,j+2,j+3)}});
    const G=new THREE.BufferGeometry();G.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));G.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));G.setIndex(ix);G.computeVertexNormals();const m=new THREE.Mesh(G,mat);m.frustumCulled=false;S3.add(m)};
   // ---- real 3D barriers: stacked tyre walls (instanced) and W-beam armco on posts ----
-  const resamp=(pts,sp)=>{const o=[];let acc=0;for(let k=0;k<pts.length-1;k++){const a=pts[k],b=pts[k+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<1e-6)continue;const tx=(b[0]-a[0])/L,tz=(b[1]-a[1])/L;while(acc<L){o.push([a[0]+tx*acc,a[1]+tz*acc,tx,tz]);acc+=sp}acc-=L}return o};
+  const resamp=(pts,sp)=>{const o=[];let acc=0;for(let k=0;k<pts.length-1;k++){const a=pts[k],b=pts[k+1],L=Math.hypot(b[0]-a[0],b[1]-a[1]);if(L<1e-6)continue;const tx=(b[0]-a[0])/L,tz=(b[1]-a[1])/L;while(acc<L){o.push([a[0]+tx*acc,a[1]+tz*acc,tx,tz,a[2]+(b[2]-a[2])*acc/L]);acc+=sp}acc-=L}return o};
+  // one smooth, level reference height along a wall: the higher of track level and ground, averaged over ~24 m so walls never step
+  const level=(P,sp)=>{const n=P.length,raw=P.map(p=>Math.max(TZ[Math.round(p[4])%N],hMesh(p[0],p[1]))),w=Math.max(1,Math.round(12/sp)),o=new Array(n);let a=0,c=0,hi=-1,lo=0;
+   for(let i=0;i<n;i++){while(hi<Math.min(n-1,i+w)){hi++;a+=raw[hi];c++}while(lo<i-w){a-=raw[lo];lo++;c--}o[i]=a/c}return o};
   const TYR=[],POST=[],tyreCol=[new THREE.Color(0xf2f2f2),new THREE.Color(0xd1202e),new THREE.Color(0x1f4fa8)],dark=new THREE.Color();
-  const tyres=(run,sg)=>{const sp=.72,P=resamp(run,sp);P.forEach((p,i)=>{const ox=-p[3]*sg,oz=p[2]*sg,x=p[0]+ox*.36,z=p[1]+oz*.36,y=hMesh(p[0],p[1]);
-    for(let l=0;l<3;l++){const sh=(l%2)*.36;TYR.push([x+p[2]*sh,y+.2+l*.4,z+p[3]*sh,l===2?tyreCol[Math.floor(i/9)%3]:null])}})};
+  const tyres=(run,sg)=>{const sp=.72,P=resamp(run,sp),L=level(P,sp);P.forEach((p,i)=>{const ox=-p[3]*sg,oz=p[2]*sg,x=p[0]+ox*.36,z=p[1]+oz*.36,g=hMesh(p[0],p[1]),n=clamp(Math.ceil((L[i]+1.2-g)/.4),3,9);
+    for(let l=0;l<n;l++){const sh=(l%2)*.36;TYR.push([x+p[2]*sh,g+.2+l*.4,z+p[3]*sh,l===n-1?tyreCol[Math.floor(i/9)%3]:null])}})};
   const rail=[[0,.33],[-.07,.43],[0,.5],[-.07,.6],[0,.7],[.1,.7],[.1,.33]],railM=new THREE.MeshLambertMaterial({color:0xc4cbd2,side:THREE.DoubleSide});
-  const armco=(run,sg)=>{const P=resamp(run,2),SEG=40,np=rail.length;
+  const armco=(run,sg)=>{const P=resamp(run,2),LV=level(P,2),SEG=40,np=rail.length;
    for(let a=0;a<P.length-1;a+=SEG-1){const q=P.slice(a,Math.min(P.length,a+SEG));if(q.length<2)continue;const pos=[],ix=[];
-    q.forEach((p,i)=>{const ox=-p[3]*sg,oz=p[2]*sg,y=hMesh(p[0],p[1]);for(const[l,h]of rail)pos.push(p[0]+ox*l,y+h,p[1]+oz*l);
+    q.forEach((p,i)=>{const ox=-p[3]*sg,oz=p[2]*sg,y=LV[a+i];for(const[l,h]of rail)pos.push(p[0]+ox*l,y+h,p[1]+oz*l);
      if(i<q.length-1)for(let e=0;e<np;e++){const a0=i*np+e,a1=i*np+(e+1)%np,b0=a0+np,b1=a1+np;ix.push(a0,b0,a1,a1,b0,b1)}});
     const G=new THREE.BufferGeometry();G.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));G.setIndex(ix);G.computeVertexNormals();S3.add(new THREE.Mesh(G,railM))}
-   resamp(run,4).forEach(p=>{const ox=-p[3]*sg,oz=p[2]*sg;POST.push([p[0]+ox*.14,hMesh(p[0],p[1])+.35,p[1]+oz*.14,Math.atan2(p[2],p[3])])})};
+   const P4=resamp(run,4),L4=level(P4,4);P4.forEach((p,i)=>{const ox=-p[3]*sg,oz=p[2]*sg,g=hMesh(p[0],p[1]),h=Math.max(.5,L4[i]+.7-g);POST.push([p[0]+ox*.14,g+h/2,p[1]+oz*.14,Math.atan2(p[2],p[3]),h/.7])})};
   for(const sd of[0,1]){const sg=sd?1:-1;let run=[],type=-1;
    const flush=()=>{if(run.length>1){if(type)armco(run,sg);else tyres(run,sg)}run=[];};
    for(let i=0;i<=N;i++){const k=i%N,wd=WD[sd][k],pitZone=TRK==='spa'&&sd===1&&(k>=N-76||k<=52);
     if(pitZone){flush();type=-1;continue}
     const t=GW[sd][k]>1.5?0:1;if(t!==type){const last=run.length?run[run.length-1]:null;flush();type=t;if(last)run.push(last)}
-    const[x,z]=at(k,sg*wd);run.push([x,z])}flush()}
+    const[x,z]=at(k,sg*wd);run.push([x,z,i])}flush()}
   {const tn=TYR.length,tg=new THREE.CylinderGeometry(.34,.34,.38,6),tm=new THREE.InstancedMesh(tg,new THREE.MeshLambertMaterial({color:0xffffff}),Math.max(1,tn)),D2=new THREE.Object3D();
    TYR.forEach((t,i)=>{D2.position.set(t[0],t[1],t[2]);D2.rotation.set(0,(i*2.399)%6.28,0);D2.updateMatrix();tm.setMatrixAt(i,D2.matrix);tm.setColorAt(i,t[3]||dark.setHSL(0,0,.05+((i*7919)%13)/260))});
    tm.count=tn;tm.frustumCulled=false;chunkify(tm,160);
    const pn=POST.length,pm=new THREE.InstancedMesh(new THREE.BoxGeometry(.1,.7,.1),new THREE.MeshLambertMaterial({color:0x6f7780}),Math.max(1,pn));
-   POST.forEach((t,i)=>{D2.position.set(t[0],t[1],t[2]);D2.rotation.set(0,t[3],0);D2.updateMatrix();pm.setMatrixAt(i,D2.matrix)});pm.count=pn;pm.frustumCulled=false;chunkify(pm,200)}
+   POST.forEach((t,i)=>{D2.position.set(t[0],t[1],t[2]);D2.rotation.set(0,t[3],0);D2.scale.set(1,t[4],1);D2.updateMatrix();pm.setMatrixAt(i,D2.matrix)});D2.scale.set(1,1,1);pm.count=pn;pm.frustumCulled=false;chunkify(pm,200)}
  }}
 function zAt(o){const i=o.idx,h=TH[i],f=((o.x-TX[i])*cos(h)+(o.y-TY[i])*sin(h))/DS,j=f>=0?(i+1)%N:(i+N-1)%N;return TZ[i]+(TZ[j]-TZ[i])*Math.min(Math.abs(f),1)}
 // ---------- optional photo textures: drop these files next to index.html ----------
@@ -692,9 +695,11 @@ function applyTex(f,t){const e=TEXF[f];for(const m of TEXM[e.k]){if(e.w==='c'){m
   ribbon(R0,R1,i=>{const r=rr(i),g=pitGap(r),w=pitWid(r),f=w/8.5;return[7+g+.12*f,7+g+.4*f]},y1,whM,6);
   ribbon(R0,R1,i=>{const r=rr(i),g=pitGap(r),w=pitWid(r),f=w/8.5;return[7+g+w-.4*f,7+g+w-.12*f]},y1,whM,6);
   // pit wall between track and fast lane
-  {const pw=new THREE.InstancedMesh(new THREE.BoxGeometry(12,1.1,.6),new THREE.MeshLambertMaterial({color:0xdfe3e8}),40);let n=0;
-   for(let r=-62;r<=26&&n<40;r+=3){const[x,z,h,y]=atf(r+1.5,7+pitGap(r+1.5)*.5);D.position.set(x,y+.55,z);D.rotation.set(0,-h,0);D.scale.set(1,1,1);D.updateMatrix();pw.setMatrixAt(n++,D.matrix)}
-   pw.count=n;pw.instanceMatrix.needsUpdate=true;pw.frustumCulled=false;S3.add(pw)}
+  {const pos=[],ix=[],pr=[];for(let r=-62;r<=26;r+=2)pr.push(r);
+   pr.forEach((r,i)=>{const off=7+pitGap(r)*.5,l=atf(r,off-.3),q=atf(r,off+.3),y=l[3]+.05;pos.push(l[0],y,l[1],l[0],y+1.1,l[1],q[0],y+1.1,q[1],q[0],y,q[1]);
+    if(i<pr.length-1)for(let e=0;e<4;e++){const a0=i*4+e,a1=i*4+(e+1)%4;ix.push(a0,a0+4,a1,a1,a0+4,a1+4)}});
+   const G=new THREE.BufferGeometry();G.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));G.setIndex(ix);G.computeVertexNormals();
+   const pw=new THREE.Mesh(G,new THREE.MeshLambertMaterial({color:0xdfe3e8,side:THREE.DoubleSide}));pw.frustumCulled=false;S3.add(pw)}
   // garages: Hypercars by number, then LMGT3 by number (spec); the extra boxes stay empty
   const ord=[...HYG.map(e=>[e[0],e[2]]).sort((a,b)=>(+a[0])-(+b[0])),...GTG.map(e=>[e[0],e[2]]).sort((a,b)=>(+a[0])-(+b[0]))];
   const wallA=new THREE.MeshLambertMaterial({color:0xe9edf1}),wallB=new THREE.MeshLambertMaterial({color:0xd9dfe6}),doorM=new THREE.MeshBasicMaterial({color:0x14171b,side:THREE.DoubleSide}),
@@ -777,16 +782,17 @@ requestAnimationFrame(frame);
   mstat();LD.set(1,'Ready');menuUp=true;
   setTimeout(()=>{LD.done();$(/go=1/.test(location.search)?'menu':'trk').style.display='flex'},200);
   // remaining cars: a few at a time so the menu stays responsive
-  let k=0;const next=()=>{if(k>=rest.length)return;one(rest[k++]).then(next,next)};for(let c=0;c<3;c++)next()});
+  // the class you picked loads first
+  const started=new Set(),own=()=>new Set((selC?GTG:HYG).map(e=>e[3]));
+  const next=()=>{const o=own(),q=rest.filter(f=>!started.has(f)&&fr[f]<1).sort((a,b)=>(o.has(b)?1:0)-(o.has(a)?1:0));if(!q.length)return;started.add(q[0]);one(q[0]).then(next,next)};for(let c=0;c<4;c++)next()});
  // pressing Start before every car has arrived waits for them (with progress), then starts
  const go=$('go'),startNow=startRace;
- go.onclick=()=>{
-  if(!pending().length){startNow();return}
-  go.disabled=true;let t0=Date.now(),done=false;
-  const show=()=>{const n=allFiles.length,left=pending().length;go.textContent='Loading cars '+(n-left)+'/'+n+'...';
-   if(!done&&(left===0||Date.now()-t0>25000)){done=true;waitBtn=null;go.disabled=false;go.textContent='Start race';startNow()}};
-  waitBtn=show;show();const iv=setInterval(()=>{if(done)clearInterval(iv);else show()},300);
-  pending().forEach(f=>{loadModel(f)})};
+ // Start only waits for YOUR car; the other cars swap in as they finish loading
+ go.onclick=()=>{const need=mf(selC,selCar[selC]);
+  if(!need||fr[need]>=1){startNow();return}
+  go.disabled=true;go.textContent='Loading your car...';let done=false;
+  const fin=()=>{if(done)return;done=true;waitBtn=null;go.disabled=false;go.textContent='Start race';startNow()};
+  waitBtn=()=>{if(fr[need]>=1)fin()};loadModel(need);setTimeout(fin,25000)};
  // choosing a car in the menu loads its model straight away if it is not here yet
  window.__prio=f=>{if(f&&fr[f]<1)loadModel(f)}}
 };
