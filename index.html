@@ -652,7 +652,7 @@ function applyTex(f,t){const e=TEXF[f];for(const m of TEXM[e.k]){if(e.w==='c'){m
  function strip(a,b,y,col){const pos=[],cl=[],ix=[];
   for(let i=0;i<=N;i++){const k=i%N,nx=-sin(TH[k]),nz=cos(TH[k]),c=col(i);for(const o of[a,b]){pos.push(TX[k]+nx*o,y+TZ[k],TY[k]+nz*o);cl.push(c[0],c[1],c[2])}if(i<N){const j=i*2;ix.push(j,j+2,j+1,j+1,j+2,j+3)}}
   const G=new THREE.BufferGeometry();G.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));G.setAttribute('color',new THREE.Float32BufferAttribute(cl,3));G.setIndex(ix);G.computeVertexNormals();
-  S3.add(new THREE.Mesh(G,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4})))}
+  const sm=new THREE.Mesh(G,new THREE.MeshLambertMaterial({vertexColors:true,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-4,polygonOffsetUnits:-4}));(window.__GSTRIP=window.__GSTRIP||[]).push(sm);S3.add(sm)}
  function ribbon(i0,i1,offs,yf,mat,tile){const pos=[],uv=[],ix=[];let c=0;
   for(let i=i0;i<=i1;i++){const k=i%N,nx=-sin(TH[k]),nz=cos(TH[k]),ab=offs(i);
    for(const o of ab){const x=TX[k]+nx*o,z=TY[k]+nz*o;pos.push(x,yf(k,x,z),z);uv.push(o/tile,i*DS/tile)}
@@ -700,6 +700,17 @@ function applyTex(f,t){const e=TEXF[f];for(const m of TEXM[e.k]){if(e.w==='c'){m
  ribbon(0,2,()=>[-TW/2,TW/2],k=>TZ[k]+.08,new THREE.MeshLambertMaterial({color:0xffffff,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-6,polygonOffsetUnits:-6}),4);
  for(const s of[1,-1])strip(s>0?TW/2:-TW/2-1.6,s>0?TW/2+1.6:-TW/2,.1,i=>(i>>2)%2?[.8,.05,.1]:[.95,.95,.95]);
  strip(-TW/2+.3,-TW/2+.6,.14,()=>[1,1,1]);strip(TW/2-.6,TW/2-.3,.14,()=>[1,1,1]);
+ // Real 2022 Spa road surface, kerbs and markings (extracted from the SpaFrancorchamps model, baked to game space)
+ if(TRK==='spa')try{new THREE.GLTFLoader().load('spa_track_2022.glb',g=>{try{
+  const po=(m,f)=>{m.polygonOffset=true;m.polygonOffsetFactor=f;m.polygonOffsetUnits=f;m.side=THREE.DoubleSide;return m};
+  const aM=po(new THREE.MeshLambertMaterial({color:0x2b2e33}),-8),kM=po(new THREE.MeshLambertMaterial({color:0xc4271f}),-10),lM=po(new THREE.MeshLambertMaterial({color:0xf2f2f2}),-12);
+  TEXM.asphalt.push(aM);const tl=TEXD.asphalt.tile,mats={asph:aM,kerb:kM,line:lM},grp=new THREE.Group();
+  g.scene.updateMatrixWorld(true);
+  g.scene.traverse(o=>{if(!o.isMesh)return;const nm=o.material&&o.material.name,G=o.geometry;
+   if(nm==='asph'){const p=G.attributes.position,uv=new Float32Array(p.count*2);for(let i=0;i<p.count;i++){uv[i*2]=p.getX(i)/tl;uv[i*2+1]=p.getZ(i)/tl}G.setAttribute('uv',new THREE.BufferAttribute(uv,2))}
+   G.computeVertexNormals();const m=new THREE.Mesh(G,mats[nm]||aM);grp.add(m)});
+  S3.add(grp);(window.__GSTRIP||[]).forEach(m=>m.visible=false);
+ }catch(e){console.warn('spa road',e)}},undefined,e=>console.warn('spa_track_2022.glb not found, using generated road'))}catch(e){console.warn(e)}
  {const x0=BB.x0,x1=BB.x1,z0=BB.z0,z1=BB.z1,cs=10,nx=Math.ceil((x1-x0)/cs)+1,nz=Math.ceil((z1-z0)/cs)+1,PP=[],CC=[],UV=[],ix=[],sm=[];
   for(let i=0;i<N;i+=3)sm.push(i);
   const GT=TEXD.grass.tile;
