@@ -596,14 +596,14 @@ function scenery(){
  {const[x,z,h]=at(6,0);bld(x,z,1.2,TW+3,1.2,h,0xe4002b,7);for(const o of[-1,1]){const[a,b,c]=at(6,o*(TW/2+1.2));bld(a,b,1,1,8,c,0x333840)}}
  // grandstands at the real spectator areas
  const ST_IMOLA=[[0.0,-1,260,14],[0.9258,-1,160,16],[0.3479,1,90,26],[0.4878,1,80,30],[0.5684,-1,80,24],[0.6894,-1,70,24],[0.8428,1,100,26],[0.1517,1,70,20]];
- if(TRK==='imola'){for(const[f,sd,l,b]of ST_IMOLA)stand(Math.round(f*N)%N,sd,l,b)}else{stand(0,-1,240);stand(62,-1,100,26);stand(262,1,60,12);stand(580,1,80,26);stand(580,-1,80,26);stand(940,1,80,28);stand(1100,1,70,24);stand(1215,-1,80,28);stand(1500,1,60,30);stand(1645,-1,90,24)}
+ if(TRK==='imola'){for(const[f,sd,l,b]of ST_IMOLA)stand(Math.round(f*N)%N,sd,l,b)}else if(0){stand(0,-1,240);stand(62,-1,100,26);stand(262,1,60,12);stand(580,1,80,26);stand(580,-1,80,26);stand(940,1,80,28);stand(1100,1,70,24);stand(1215,-1,80,28);stand(1500,1,60,30);stand(1645,-1,90,24)}
  // houses, villages and the La Source hotel (placed clear of the track)
  const spot=(i,side,off,L,Wd,rt)=>{for(let o=off;o<off+90;o+=5){const[x,z,h]=at(i,side*(TW/2+o)),r=h+(rt||0);if(clearFp(x,z,L+8,Wd+8,r)&&!bl.some(b=>Math.hypot(x-b[0],z-b[1])<b[2]+L/2+6))return[x,z,r]}return null};
  const house=(x,z,rot)=>{const w=9+rnd()*6,dp=7+rnd()*3,m=bld(x,z,w,dp,5,rot,rnd()>.5?0xe9e2d3:0xd8c8a8),top=m.position.y+m.geometry.parameters.height/2,rf=new THREE.Mesh(new THREE.ConeGeometry(w*.72,4.5,4),M(0x7a3b2e));
   rf.position.set(x,top+2.2,z);rf.rotation.y=-rot+PI/4;S3.add(rf)};
  const village=(i,side,off,cnt)=>{for(let k=0;k<cnt;k++){const sp=spot(i+Math.round((rnd()-.5)*30),side,off+rnd()*40,16,10,rnd()<.5?0:PI/2);if(sp)house(sp[0],sp[1],sp[2])}};
- if(TRK==='spa'){const sp=spot(61,1,16,38,14,0);if(sp){const m=bld(sp[0],sp[1],38,14,10,sp[2],0xf1eee6),top=m.position.y+m.geometry.parameters.height/2,rf=new THREE.Mesh(new THREE.BoxGeometry(39,1.2,15),M(0x5b3a2e));rf.position.set(sp[0],top+.6,sp[1]);rf.rotation.y=-sp[2];S3.add(rf)}}
- if(TRK==='spa'){for(const v of[[95,1,60,4],[400,-1,90,3],[600,1,70,5],[800,1,90,3],[1000,-1,80,3],[1190,-1,60,6],[1500,1,80,3]])village(...v)}
+ if(0){const sp=spot(61,1,16,38,14,0);if(sp){const m=bld(sp[0],sp[1],38,14,10,sp[2],0xf1eee6),top=m.position.y+m.geometry.parameters.height/2,rf=new THREE.Mesh(new THREE.BoxGeometry(39,1.2,15),M(0x5b3a2e));rf.position.set(sp[0],top+.6,sp[1]);rf.rotation.y=-sp[2];S3.add(rf)}}
+ if(0){for(const v of[[95,1,60,4],[400,-1,90,3],[600,1,70,5],[800,1,90,3],[1000,-1,80,3],[1190,-1,60,6],[1500,1,80,3]])village(...v)}
  else{for(const[f,sd,o,c]of[[.2,1,60,3],[.45,-1,70,3],[.6,1,80,3],[.75,-1,70,3],[.9,1,60,3]])village(Math.round(f*N),sd,o,c)}
  // forest: dense Ardennes spruce along the circuit (FD[] sets density), a few broadleaf trees, and bushes
  const MP=6000,MBL=1400,pn=new THREE.InstancedMesh(new THREE.ConeGeometry(2.7,6.5,6),M(0xffffff),MP),pn2=new THREE.InstancedMesh(new THREE.ConeGeometry(2,5.5,7),M(0xffffff),MP),pn3=new THREE.InstancedMesh(new THREE.ConeGeometry(1.2,4.4,7),M(0xffffff),MP),
@@ -617,13 +617,13 @@ function scenery(){
   for(let c=0;c<cnt;c++){const lat=WD[sd][i]+3+Math.pow(rnd(),1.6)*(dn===2?90:60),[x,z]=at(i+Math.floor(rnd()*3)-1,sg*lat);if(dTrack(x,z)>=WD[sd][i]+1.5)plant(x,z)}}
  for(let t=0,n=0;t<16000&&n<1400;t++){const x=BB.x0+50+rnd()*(BB.x1-BB.x0-100),z=BB.z0+50+rnd()*(BB.z1-BB.z0-100),d=dTrack(x,z);if(d<80||d>300)continue;
   if(Math.sin(x*.012)*Math.sin(z*.014)+Math.sin((x-z)*.02)*.5<-.25)continue;plant(x,z);n++}
- for(const o of[pn,pn2,pn3,tk,bro])o.frustumCulled=false;pn.count=pn2.count=pn3.count=np;tk.count=nt;bro.count=nb;{const c0=CHK.length;for(const o of[pn,pn2,pn3,tk,bro])chunkify(o);for(let q=c0;q<CHK.length;q++)CHK[q].userData.tree=1}
- const MB=1400,bu=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1.3,0),M(0xffffff),MB);let m=0;
+ for(const o of[pn,pn2,pn3,tk,bro])o.frustumCulled=false;pn.count=pn2.count=pn3.count=np;tk.count=nt;bro.count=nb;{const c0=CHK.length;for(const o of[pn,pn2,pn3,tk,bro])chunkify(o);for(let q=c0;q<CHK.length;q++){CHK[q].userData.tree=1;CHK[q].userData.fr=360}}
+ const MB=TRK==='spa'?0:1400,bu=new THREE.InstancedMesh(new THREE.IcosahedronGeometry(1.3,0),M(0xffffff),MB);let m=0;
  for(let i=0;i<N&&m<MB;i+=3)for(const sd of[0,1]){if(!FD[i]||rnd()>.55)continue;const sg=sd?1:-1,[x,z]=at(i,sg*(WD[sd][i]+1.5+rnd()*9)),k=.8+rnd()*1.4;
   D.rotation.set(0,rnd()*6,0);D.scale.set(k,k*.75,k);D.position.set(x,hAt(x,z)+.6*k,z);D.updateMatrix();bu.setMatrixAt(m,D.matrix);bu.setColorAt(m,new THREE.Color().setHSL(.22+rnd()*.12,.5,.25+rnd()*.12));m++}
  bu.count=m;chunkify(bu);
  // Armco where the wall is near the track, tyre walls where there is a run-off area in front of it
- {// barriers are continuous strips that follow the ground, so there are no gaps or stepped pieces
+ if(TRK!=='spa'){// barriers are continuous strips that follow the ground, so there are no gaps or stepped pieces
   const mkTex=(draw,w,h)=>{const c=document.createElement('canvas');c.width=w;c.height=h;const q=c.getContext('2d');draw(q,w,h);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;try{t.anisotropy=Math.min(8,R3.capabilities.getMaxAnisotropy())}catch(e){}return t};
   const armT=mkTex((q,w,h)=>{q.fillStyle='#b9c0c8';q.fillRect(0,0,w,h);for(let k=0;k<2;k++){const y=h*(.12+k*.44);q.fillStyle='#8c949d';q.fillRect(0,y,w,h*.1);q.fillStyle='#dfe4ea';q.fillRect(0,y+h*.1,w,h*.14);q.fillStyle='#8c949d';q.fillRect(0,y+h*.24,w,h*.06)}
     q.fillStyle='#6d747c';for(let x=0;x<w;x+=w/2)q.fillRect(x,0,5,h)},128,64);
@@ -763,7 +763,7 @@ o.g.rotation.order="YZX";o.g.position.set(o.x,gY(o)+.08,o.y);{const t=offT(o);le
  if(camAng===undefined)camAng=p.th;let da=p.th-camAng;while(da>PI)da-=2*PI;while(da<-PI)da+=2*PI;camAng+=da*.12;
  const dist=(8+p.u*.05)*CAMDIST,hh=2.5+p.u*.01+CAMH,fx=cos(camAng+CAMOFF),fz=sin(camAng+CAMOFF);
  const pz=gY(p);camZ=camZ===undefined?pz:camZ+(pz-camZ)*.12;C3.position.set(p.x-fx*dist,hh+camZ,p.y-fz*dist);if(CAMOFF)C3.lookAt(p.x,1+CAMLH+camZ,p.y);else C3.lookAt(p.x+fx*10,1.1+CAMLH+camZ,p.y+fz*10);C3.fov=68+p.u*.12+CAMFOV;C3.updateProjectionMatrix();
- {const FR=520;for(const c of CHK){const dx=c.userData.cx-C3.position.x,dz=c.userData.cz-C3.position.z,d2=dx*dx+dz*dz;c.visible=d2<FR*FR&&(d2<260*260||dx*fx+dz*fz>-200)}}}
+ {const FR0=520;for(const c of CHK){const FR=c.userData.fr||FR0,dx=c.userData.cx-C3.position.x,dz=c.userData.cz-C3.position.z,d2=dx*dx+dz*dz,nr=Math.min(260,FR*.55);c.visible=d2<FR*FR&&(d2<nr*nr||dx*fx+dz*fz>-200)}}}
 let ftE=16,ftN=0;
 function frame(t){requestAnimationFrame(frame);const raw=(t-lastT)||16,dt=Math.min(raw/1000||0,.034);lastT=t;
  if(state!=='menu'){ftE+=(Math.min(raw,100)-ftE)*.08;if(++ftN>=45){ftN=0;let n=RS;if(ftE>34&&RS>.75)n=Math.max(.75,RS-.05);else if(ftE<19&&RS<1)n=Math.min(1,RS+.1);if(n!==RS){RS=n;rs3()}}}
@@ -804,7 +804,7 @@ const BLANK=true;if(BLANK){const KP=window.__KEEP||[];S3.children.slice().forEac
    const G=new THREE.BufferGeometry();G.setAttribute('position',new THREE.BufferAttribute(pos,3));G.setIndex(new THREE.BufferAttribute(idx,1));
    if(VC[gi]){const cb=new Uint8Array(buf.slice(o,o+nv*3));o+=nv*3;const cf=new Float32Array(nv*3);for(let i=0;i<nv*3;i++)cf[i]=cb[i]/255;G.setAttribute('color',new THREE.BufferAttribute(cf,3))}
    G.computeVertexNormals();
-   const mesh=new THREE.Mesh(G,mats[gi]);mesh.userData.cx=ox;mesh.userData.cz=oz;S3.add(mesh);CHK.push(mesh)}
+   const mesh=new THREE.Mesh(G,mats[gi]);mesh.userData.cx=ox;mesh.userData.cz=oz;mesh.userData.fr=[450,300,300,220,260,250,250,250,250,450][gi]||300;S3.add(mesh);CHK.push(mesh)}
   // height grid
   let len=dv.getUint32(o,true);o+=4;{const gx0=dv.getFloat32(o,true),gz0=dv.getFloat32(o+4,true),c=dv.getFloat32(o+8,true),nx=dv.getUint32(o+12,true),nz=dv.getUint32(o+16,true),nr=dv.getUint32(o+20,true);let q=o+24;
    const H=new Float32Array(nx*nz).fill(NaN);
