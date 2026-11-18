@@ -774,6 +774,8 @@ requestAnimationFrame(frame);
 
 
 // BLANK: hides all track, terrain, walls, buildings and trees (cars, lights and HUD stay). Set to false to bring everything back.
+{const D=document.createElement('div');D.style.cssText='position:fixed;left:6px;bottom:6px;z-index:99;font:11px monospace;color:#0f0;background:rgba(0,0,0,.6);padding:4px 6px;white-space:pre;pointer-events:none';document.body.appendChild(D);
+setInterval(()=>{try{let vis=0,tot=0,hid=0;S3.children.forEach(o=>{tot++;if(o.visible)vis++});let cv=0;CHK.forEach(c=>{if(c.visible)cv++});const q=P||{};D.textContent='world '+(window.__worldReady?'built':'NOT built')+' | scene '+vis+'/'+tot+' visible | chunks '+cv+'/'+CHK.length+'\ncam '+C3.position.x.toFixed(0)+','+C3.position.y.toFixed(0)+','+C3.position.z.toFixed(0)+' | car '+(q.x!==undefined?q.x.toFixed(0)+','+(q.sy||0).toFixed(1)+','+q.y.toFixed(0):'-')+' | '+state}catch(e){D.textContent='dbg err '+e.message}},500)}
 const BLANK=true;if(BLANK){const KP=window.__KEEP||[];S3.children.slice().forEach(o=>{if(!o.isLight&&o!==HT.M&&!KP.includes(o)&&!(o.userData&&o.userData.tree))o.visible=false});CHK.splice(0,CHK.length,...CHK.filter(c=>c.userData.tree))}
 // ---------- loading screen: load only what the menu needs, the other cars load in the background ----------
 {const mf=(c,i)=>((c?GTG:HYG)[i]||[])[3],allFiles=[...new Set([...HYG,...GTG].map(e=>e[3]).filter(Boolean))],texFiles=Object.keys(TEXF),
