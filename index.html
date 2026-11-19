@@ -140,7 +140,7 @@ const BB=TRK==='imola'?{x0:Math.floor((bx0-500)/10)*10,x1:Math.ceil((bx1+500)/10
 
 // ---------- Spa circuit furniture, per track index: gravel width, wall distance, forest density ----------
 // side 0 = the -offset side of the track, side 1 = the +offset side. In a right turn (+) the outside is side 0.
-const PV=[new Float32Array(N).fill(TW/2+1),new Float32Array(N).fill(TW/2+1)],GW=[new Float32Array(N),new Float32Array(N)],WD=[new Float32Array(N),new Float32Array(N)],FD=new Uint8Array(N);
+let SOF=null,SVA=null;const PV=[new Float32Array(N).fill(TW/2+1),new Float32Array(N).fill(TW/2+1)],GW=[new Float32Array(N),new Float32Array(N)],WD=[new Float32Array(N),new Float32Array(N)],FD=new Uint8Array(N);
 {const Z=[ // [from,to, gravel side0, gravel side1, wall side0, wall side1 (metres beyond the track edge), forest 0-2]
  [0,45,0,0,6,8,0],            // start/finish straight and pits
  [46,90,10,0,20,12,0],        // La Source hairpin
@@ -211,10 +211,14 @@ function track(o){
  {const k=Math.max(0,Math.floor((o.prog+N)/4));if(!o.tsg){o.tsg=[];o.tk=k-1}while(o.tk<k){o.tk++;o.tsg[o.tk]=T}}
  const ad=Math.abs(o.d),sd=o.d<0?0:1,gw=GW[sd][bi];o.pit=false;let pr=0;if(TRK==='spa'&&o.d>0){pr=bi>N/2?bi-N:bi;if(pr>=-70&&pr<=44){const pw=pitWid(pr);if(pw>1&&o.d>6.7+pitGap(pr)&&o.d<7+pitGap(pr)+pw+1.2)o.pit=true}}
  const pv=PV[sd][bi],sT=(ad<pv+.2||o.pit)?1:(gw>1.5&&ad<pv+.6+gw)?.8:ad<pv+2?.95:.9;o.surf=o.surf===undefined?sT:o.surf+(sT-o.surf)*.02;
- const lim=o.pit?Math.min(WD[sd][bi],7+pitGap(pr)+pitWid(pr)+.4):WD[sd][bi];if(ad>lim){const s=Math.sign(o.d),e=ad-lim;o.x+=sin(h)*s*e;o.y-=cos(h)*s*e;
+ const zn=TRK==='spa'&&o.d>0&&pr>=-74&&pr<=50,us=!!SOF&&!zn;let ws=0,we=0,close=false;
+ if(us){const r=1.05;for(let q=SOF[bi],qe=SOF[bi+1];q<qe;q++){const a=SVA[2*q]/10,b=SVA[2*q+1]/10;if(o.d>a-r-.6&&o.d<b+r+.6)close=true;if(!ws&&o.d>a-r&&o.d<b+r){if(o.d<(a+b)/2){ws=1;we=o.d-(a-r)}else{ws=-1;we=b+r-o.d}}}
+  if(ad>150){ws=Math.sign(o.d);we=ad-150}}
+ else{const lim=o.pit?Math.min(WD[sd][bi],7+pitGap(pr)+pitWid(pr)+.4):WD[sd][bi];if(ad>lim){ws=Math.sign(o.d);we=ad-lim}else if(ad<lim-.6)close=false;else close=true}
+ if(ws){const s=ws,e=we;o.x+=sin(h)*s*e;o.y-=cos(h)*s*e;
   let rel=o.th-h;while(rel>PI)rel-=2*PI;while(rel<-PI)rel+=2*PI;const cl=(o.u*sin(rel)+o.v*cos(rel))*s;
   if(!o.wc&&cl>2){o.u*=1-clamp(cl*.02,0,.4);o.wc=1}
-  o.u*=.9985;o.v*=.85;o.r*=.9;o.th-=clamp(rel,-.4,.4)*.02}else if(ad<lim-.6)o.wc=0
+  o.u*=.9985;o.v*=.85;o.r*=.9;o.th-=clamp(rel,-.4,.4)*.02}else if(!close)o.wc=0
  if(o.lap>=LAPS&&!o.fin){o.fin=true;o.ft=T;if(o===P){o.ai=true;o.skill=.85;state='done';setTimeout(showRes,2500)}}}
 
 // ---------- vehicle dynamics: bicycle model, Pacejka-style tyres, friction circle, aero, load transfer ----------
@@ -832,6 +836,8 @@ const BLANK=true;if(BLANK){const KP=window.__KEEP||[];S3.children.slice().forEac
   len=dv.getUint32(o,true);o+=4;{const n=dv.getUint32(o,true);o+=4;
    if(n===N){for(let i=0;i<N;i++){WD[0][i]=dv.getUint8(o+i)/4;WD[1][i]=dv.getUint8(o+N+i)/4;PV[0][i]=Math.max(TW/2+1,dv.getUint8(o+2*N+i)/4);PV[1][i]=Math.max(TW/2+1,dv.getUint8(o+3*N+i)/4);GW[0][i]=GW[1][i]=0}
     for(let i=-74;i<=50;i++){const k=(i+N)%N;WD[1][k]=Math.max(WD[1][k],40);PV[1][k]=TW/2+1}}}
+  o+=len-4;
+  if(o+8<=buf.byteLength){const l2=dv.getUint32(o,true);o+=4;const n2=dv.getUint32(o,true);if(n2===N){const cn=new Uint8Array(buf.slice(o+4,o+4+N));const of=new Int32Array(N+1);for(let i=0;i<N;i++)of[i+1]=of[i]+cn[i];SVA=new Int16Array(buf.slice(o+4+N,o+4+N+of[N]*4));SOF=of}o+=l2}
   // remove generated trees that would stand inside the real run-off, pit area or grandstands
   {const BOX=[[516,604,256,407],[-33,62,36,149]];
    for(const c of CHK){if(!c.userData.tree)continue;const arr=c.instanceMatrix.array;let ch=false;
